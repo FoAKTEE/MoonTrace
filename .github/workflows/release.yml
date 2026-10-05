@@ -1,0 +1,67 @@
+name: Build & Release
+
+# Builds the Android APK and an unsigned iOS IPA from the same web build,
+# then attaches both to a GitHub Release when a v* tag is pushed.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '17' }
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - name: Build web app
+        run: python3 source/build.py
+      - name: Build APK
+        working-directory: android
+        run: |
+          ./fetch-tools.sh
+          ./build.sh
+          cp build/moontrace.apk ../Moontrace-${GITHUB_REF_NAME#v}.apk
+      - uses: actions/upload-artifact@v4
+        with: { name: android-apk, path: 'Moontrace-*.apk' }
+
+  ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build web app
+        run: python3 source/build.py
+      - name: Build unsigned IPA
+        run: |
+          xcodebuild -project ios/Moontrace.xcodeproj -target Moontrace -configuration Release \
+            -sdk iphoneos SYMROOT="$PWD/ios/build" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build
+          mkdir -p Payload
+          cp -R ios/build/Release-iphoneos/Moontrace.app Payload/
+          zip -qry "Moontrace-${GITHUB_REF_NAME#v}-unsigned.ipa" Payload
+      - uses: actions/upload-artifact@v4
+        with: { name: ios-ipa, path: 'Moontrace-*.ipa' }
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [android, ios]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: { merge-multiple: true, path: out }
+      - name: Bundle offline web page
+        run: cp web/index.html "out/Moontrace-${GITHUB_REF_NAME#v}-web.html"
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: out/*
+          body: |
+            安装说明见 [INSTALL.md](https://github.com/${{ github.repository }}/blob/main/INSTALL.md)。
+            - `Moontrace-*.apk`：Android 安装包
+            - `Moontrace-*-unsigned.ipa`：iOS 未签名包，需用 AltStore / Sideloadly 等工具自签安装
+            - `Moontrace-*-web.html`：离线网页版，任何浏览器直接打开

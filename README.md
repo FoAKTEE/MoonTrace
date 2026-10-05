@@ -2,6 +2,8 @@
 
 基于你提供的 **moontrace-v2.zip** 增量更新。保留 v2 的手机布局、CH¹ 圆环、概率核心、多轮发言、PWA 与原生壳；增加角色板子、真实/自称角色分离和技能账本。
 
+> 安装与使用指南见 [INSTALL.md](INSTALL.md)；安装包在 [Releases](https://github.com/FoAKTEE/MoonTrace/releases/latest) 下载。
+
 ## 直接使用
 
 | 文件 | 用途 |

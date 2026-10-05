@@ -1,0 +1,4 @@
+android/build/
+android/tools/
+ios/build/
+.DS_Store
