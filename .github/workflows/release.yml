@@ -61,7 +61,7 @@ jobs:
         with:
           files: out/*
           body: |
-            安装说明见 [INSTALL.md](https://github.com/${{ github.repository }}/blob/main/INSTALL.md)。
+            安装说明见 [README](https://github.com/${{ github.repository }}#readme)。
             - `Moontrace-*.apk`：Android 安装包
             - `Moontrace-*-unsigned.ipa`：iOS 未签名包，需用 AltStore / Sideloadly 等工具自签安装
             - `Moontrace-*-web.html`：离线网页版，任何浏览器直接打开
