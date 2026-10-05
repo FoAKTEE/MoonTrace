@@ -1,0 +1,7 @@
+{
+  "actual_load_fallback_passed": true,
+  "schema_upgraded_to": 2,
+  "new_storage_written": true,
+  "old_storage_unchanged": true,
+  "limitation": "Browser localStorage shim, not real device persistence"
+}

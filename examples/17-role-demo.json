@@ -1,0 +1,558 @@
+{
+  "version": 2,
+  "name": "多角色演示（虚构）",
+  "n": 17,
+  "wolves": 6,
+  "round": 3,
+  "phase": "day",
+  "demo": true,
+  "players": [
+    {
+      "id": 1,
+      "fixed": "good",
+      "alive": true,
+      "role": "",
+      "weight": 0.65,
+      "claimedRole": "seer",
+      "confirmedRole": "seer",
+      "thirdParty": false,
+      "deathReason": "unknown"
+    },
+    {
+      "id": 2,
+      "fixed": "good",
+      "alive": true,
+      "role": "",
+      "weight": 0.65,
+      "claimedRole": "witch",
+      "confirmedRole": "witch",
+      "thirdParty": false,
+      "deathReason": "unknown"
+    },
+    {
+      "id": 3,
+      "fixed": "good",
+      "alive": true,
+      "role": "",
+      "weight": 0.65,
+      "claimedRole": "guard",
+      "confirmedRole": "guard",
+      "thirdParty": false,
+      "deathReason": "unknown"
+    },
+    {
+      "id": 4,
+      "fixed": "unknown",
+      "alive": true,
+      "role": "",
+      "weight": 0.65,
+      "claimedRole": "",
+      "confirmedRole": "",
+      "thirdParty": false,
+      "deathReason": "unknown"
+    },
+    {
+      "id": 5,
+      "fixed": "unknown",
+      "alive": true,
+      "role": "",
+      "weight": 0.65,
+      "claimedRole": "",
+      "confirmedRole": "",
+      "thirdParty": false,
+      "deathReason": "unknown"
+    },
+    {
+      "id": 6,
+      "fixed": "unknown",
+      "alive": true,
+      "role": "",
+      "weight": 0.65,
+      "claimedRole": "",
+      "confirmedRole": "",
+      "thirdParty": false,
+      "deathReason": "unknown"
+    },
+    {
+      "id": 7,
+      "fixed": "unknown",
+      "alive": true,
+      "role": "",
+      "weight": 0.65,
+      "claimedRole": "knight",
+      "confirmedRole": "",
+      "thirdParty": false,
+      "deathReason": "unknown"
+    },
+    {
+      "id": 8,
+      "fixed": "wolf",
+      "alive": true,
+      "role": "",
+      "weight": 0.65,
+      "claimedRole": "",
+      "confirmedRole": "whiteWolfKing",
+      "thirdParty": false,
+      "deathReason": "unknown"
+    },
+    {
+      "id": 9,
+      "fixed": "unknown",
+      "alive": false,
+      "role": "只确认死因，底牌仍未知",
+      "weight": 0.65,
+      "claimedRole": "",
+      "confirmedRole": "",
+      "thirdParty": false,
+      "deathReason": "poison"
+    },
+    {
+      "id": 10,
+      "fixed": "wolf",
+      "alive": true,
+      "role": "",
+      "weight": 0.65,
+      "claimedRole": "",
+      "confirmedRole": "wolf",
+      "thirdParty": true,
+      "deathReason": "unknown"
+    },
+    {
+      "id": 11,
+      "fixed": "unknown",
+      "alive": true,
+      "role": "",
+      "weight": 0.65,
+      "claimedRole": "",
+      "confirmedRole": "",
+      "thirdParty": false,
+      "deathReason": "unknown"
+    },
+    {
+      "id": 12,
+      "fixed": "unknown",
+      "alive": true,
+      "role": "",
+      "weight": 0.65,
+      "claimedRole": "",
+      "confirmedRole": "",
+      "thirdParty": false,
+      "deathReason": "unknown"
+    },
+    {
+      "id": 13,
+      "fixed": "unknown",
+      "alive": true,
+      "role": "",
+      "weight": 0.65,
+      "claimedRole": "",
+      "confirmedRole": "",
+      "thirdParty": false,
+      "deathReason": "unknown"
+    },
+    {
+      "id": 14,
+      "fixed": "unknown",
+      "alive": true,
+      "role": "",
+      "weight": 0.65,
+      "claimedRole": "",
+      "confirmedRole": "",
+      "thirdParty": true,
+      "deathReason": "unknown"
+    },
+    {
+      "id": 15,
+      "fixed": "unknown",
+      "alive": true,
+      "role": "",
+      "weight": 0.65,
+      "claimedRole": "villager",
+      "confirmedRole": "",
+      "thirdParty": false,
+      "deathReason": "unknown"
+    },
+    {
+      "id": 16,
+      "fixed": "unknown",
+      "alive": true,
+      "role": "",
+      "weight": 0.65,
+      "claimedRole": "",
+      "confirmedRole": "",
+      "thirdParty": false,
+      "deathReason": "unknown"
+    },
+    {
+      "id": 17,
+      "fixed": "good",
+      "alive": true,
+      "role": "",
+      "weight": 0.65,
+      "claimedRole": "cupid",
+      "confirmedRole": "cupid",
+      "thirdParty": false,
+      "deathReason": "unknown"
+    }
+  ],
+  "roles": {
+    "enabled": true,
+    "counts": {
+      "villager": 5,
+      "wolf": 3,
+      "whiteWolfKing": 1,
+      "blackWolfKing": 1,
+      "nightmare": 1,
+      "seer": 1,
+      "guard": 1,
+      "witch": 1,
+      "hunter": 1,
+      "cupid": 1,
+      "knight": 1
+    },
+    "custom": [],
+    "rules": {
+      "guardRepeat": false,
+      "witchDouble": false,
+      "witchSelfSave": "first",
+      "poisonStopsShot": true,
+      "blackWolfSelfExplode": false,
+      "note": ""
+    }
+  },
+  "sheriff": 7,
+  "events": [
+    {
+      "id": "emuv951nvspdamxu",
+      "speaker": 7,
+      "text": "我是骑士。我怀疑12号，5号像好人。",
+      "relations": [
+        {
+          "id": "emuv951nvo3nteti",
+          "from": 7,
+          "to": 12,
+          "type": "suspect",
+          "label": "怀疑",
+          "strength": 0.85
+        },
+        {
+          "id": "emuv951nv21om0os",
+          "from": 7,
+          "to": 5,
+          "type": "trust",
+          "label": "偏好人",
+          "strength": 0.85
+        }
+      ],
+      "round": 1,
+      "phase": "day",
+      "manual": false,
+      "createdAt": 1700000060000
+    },
+    {
+      "id": "emuv951nv3w6m1a0",
+      "speaker": 12,
+      "text": "我怀疑4号，6号也有问题。",
+      "relations": [
+        {
+          "id": "emuv951nvbccjs2n",
+          "from": 12,
+          "to": 4,
+          "type": "suspect",
+          "label": "怀疑",
+          "strength": 0.85
+        },
+        {
+          "id": "emuv951nvsqu3oxq",
+          "from": 12,
+          "to": 6,
+          "type": "suspect",
+          "label": "怀疑",
+          "strength": 0.85
+        }
+      ],
+      "round": 1,
+      "phase": "day",
+      "manual": false,
+      "createdAt": 1700000120000
+    },
+    {
+      "id": "emuv951nvxf70fdm",
+      "speaker": 4,
+      "text": "我怀疑12号，5号像好人。",
+      "relations": [
+        {
+          "id": "emuv951nvvu3nf9o",
+          "from": 4,
+          "to": 12,
+          "type": "suspect",
+          "label": "怀疑",
+          "strength": 0.85
+        },
+        {
+          "id": "emuv951nv9hzaza6",
+          "from": 4,
+          "to": 5,
+          "type": "trust",
+          "label": "偏好人",
+          "strength": 0.85
+        }
+      ],
+      "round": 2,
+      "phase": "day",
+      "manual": false,
+      "createdAt": 1700000180000
+    },
+    {
+      "id": "emuv951nv3fip82y",
+      "speaker": 5,
+      "text": "我怀疑6号，暂时信4号。",
+      "relations": [
+        {
+          "id": "emuv951nv7ngcj1a",
+          "from": 5,
+          "to": 6,
+          "type": "suspect",
+          "label": "怀疑",
+          "strength": 0.85
+        },
+        {
+          "id": "emuv951nvy9yeu33",
+          "from": 5,
+          "to": 4,
+          "type": "trust",
+          "label": "偏好人",
+          "strength": 0.65
+        }
+      ],
+      "round": 2,
+      "phase": "day",
+      "manual": false,
+      "createdAt": 1700000240000
+    },
+    {
+      "id": "emuv951nv7xp4l6q",
+      "speaker": 13,
+      "text": "我怀疑15号，今天想投15号。",
+      "relations": [
+        {
+          "id": "emuv951nvp27ww07",
+          "from": 13,
+          "to": 15,
+          "type": "suspect",
+          "label": "怀疑",
+          "strength": 0.85
+        }
+      ],
+      "round": 3,
+      "phase": "day",
+      "manual": false,
+      "createdAt": 1700000300000
+    },
+    {
+      "id": "emuv951nvhfe6huc",
+      "speaker": 17,
+      "text": "已确认 · 丘比特连接恋人 → 10号、14号\n虚构示例；技能不自动结算生死与身份",
+      "relations": [
+        {
+          "id": "emuv951nvpkdm068",
+          "from": 17,
+          "to": 10,
+          "type": "skill",
+          "label": "连接恋人",
+          "strength": 0
+        },
+        {
+          "id": "emuv951nva9u8kkf",
+          "from": 17,
+          "to": 14,
+          "type": "skill",
+          "label": "连接恋人",
+          "strength": 0
+        }
+      ],
+      "round": 1,
+      "phase": "night",
+      "manual": true,
+      "createdAt": 1700000360000,
+      "kind": "skill",
+      "skill": {
+        "type": "link",
+        "roleId": "cupid",
+        "targets": [
+          10,
+          14
+        ],
+        "status": "confirmed",
+        "result": "",
+        "note": "虚构示例；技能不自动结算生死与身份",
+        "override": false
+      }
+    },
+    {
+      "id": "emuv951nvaa1e9t7",
+      "speaker": 3,
+      "text": "已确认 · 守卫守护 → 1号\n虚构示例；技能不自动结算生死与身份",
+      "relations": [
+        {
+          "id": "emuv951nv55u89is",
+          "from": 3,
+          "to": 1,
+          "type": "skill",
+          "label": "守护",
+          "strength": 0
+        }
+      ],
+      "round": 1,
+      "phase": "night",
+      "manual": true,
+      "createdAt": 1700000420000,
+      "kind": "skill",
+      "skill": {
+        "type": "guard",
+        "roleId": "guard",
+        "targets": [
+          1
+        ],
+        "status": "confirmed",
+        "result": "",
+        "note": "虚构示例；技能不自动结算生死与身份",
+        "override": false
+      }
+    },
+    {
+      "id": "emuv951nvx6lntwe",
+      "speaker": 3,
+      "text": "已确认 · 守卫守护 → 4号\n虚构示例；技能不自动结算生死与身份",
+      "relations": [
+        {
+          "id": "emuv951nvh50yakb",
+          "from": 3,
+          "to": 4,
+          "type": "skill",
+          "label": "守护",
+          "strength": 0
+        }
+      ],
+      "round": 2,
+      "phase": "night",
+      "manual": true,
+      "createdAt": 1700000480000,
+      "kind": "skill",
+      "skill": {
+        "type": "guard",
+        "roleId": "guard",
+        "targets": [
+          4
+        ],
+        "status": "confirmed",
+        "result": "",
+        "note": "虚构示例；技能不自动结算生死与身份",
+        "override": false
+      }
+    },
+    {
+      "id": "emuv951nvszdr3lv",
+      "speaker": 2,
+      "text": "已确认 · 女巫使用解药 → 6号\n虚构示例；技能不自动结算生死与身份",
+      "relations": [
+        {
+          "id": "emuv951nvxgj0sfy",
+          "from": 2,
+          "to": 6,
+          "type": "skill",
+          "label": "使用解药",
+          "strength": 0
+        }
+      ],
+      "round": 1,
+      "phase": "night",
+      "manual": true,
+      "createdAt": 1700000540000,
+      "kind": "skill",
+      "skill": {
+        "type": "save",
+        "roleId": "witch",
+        "targets": [
+          6
+        ],
+        "status": "confirmed",
+        "result": "",
+        "note": "虚构示例；技能不自动结算生死与身份",
+        "override": false
+      }
+    },
+    {
+      "id": "emuv951nvf1q57ko",
+      "speaker": 2,
+      "text": "已确认 · 女巫使用毒药 → 9号\n虚构示例；技能不自动结算生死与身份",
+      "relations": [
+        {
+          "id": "emuv951nv41a7vg8",
+          "from": 2,
+          "to": 9,
+          "type": "skill",
+          "label": "使用毒药",
+          "strength": 0
+        }
+      ],
+      "round": 2,
+      "phase": "night",
+      "manual": true,
+      "createdAt": 1700000600000,
+      "kind": "skill",
+      "skill": {
+        "type": "poison",
+        "roleId": "witch",
+        "targets": [
+          9
+        ],
+        "status": "confirmed",
+        "result": "",
+        "note": "虚构示例；技能不自动结算生死与身份",
+        "override": false
+      }
+    },
+    {
+      "id": "emuv951nv46whn3u",
+      "speaker": 1,
+      "text": "声称 · 预言家查验 → 12号 · 报查杀\n虚构示例；技能不自动结算生死与身份",
+      "relations": [
+        {
+          "id": "emuv951nvm7msj84",
+          "from": 1,
+          "to": 12,
+          "type": "skill",
+          "label": "声称查验 · 报查杀",
+          "strength": 0
+        }
+      ],
+      "round": 2,
+      "phase": "night",
+      "manual": true,
+      "createdAt": 1700000660000,
+      "kind": "skill",
+      "skill": {
+        "type": "check",
+        "roleId": "seer",
+        "targets": [
+          12
+        ],
+        "status": "claimed",
+        "result": "报查杀",
+        "note": "虚构示例；技能不自动结算生死与身份",
+        "override": false
+      }
+    }
+  ],
+  "sensitivity": 1,
+  "decay": 0.9,
+  "muteKnownWolves": true,
+  "selected": 2,
+  "layout": {
+    "rho": 0.83,
+    "rotation": 0,
+    "focus": true,
+    "labels": true
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "app_version": "3.0",
+  "save_schema": 2,
+  "roles": 20,
+  "skill_actions": 21,
+  "legacy_ui_checks": 87,
+  "new_ui_checks": 54,
+  "role_numerical_assertions": 2315,
+  "files": {
+    "web/index.html": {
+      "bytes": 157938,
+      "sha256": "50bf9b49d96a5765d3f8a9c2f0e1e0902f701129bcb7dcdc879dca644781ecab"
+    },
+    "pwa/index.html": {
+      "bytes": 158286,
+      "sha256": "7f0cde3c5fc3498957d8a67fda5119133b3c8b2fbd5a21fbf3a3b7998936432b"
+    },
+    "pwa/sw.js": {
+      "bytes": 1003,
+      "sha256": "536b24eac0839632dc750a7cd1a5ed37dca1d0848a703e5375a35121e28543d9"
+    },
+    "moontrace-v3.apk": {
+      "bytes": 354999,
+      "sha256": "d8dec52d497e1d5d6187dba98fab2dee66d0509a1ead67c220fab787282b5e02"
+    },
+    "examples/17-role-demo.json": {
+      "bytes": 12541,
+      "sha256": "8be1b4509e8d799ad51ec8e0b8e79930a816cb27a4a8447f78a972245ae9adb4"
+    }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "certificate_sha256": "c674840e348532e15ff67c20718e6ce33d9a4501087c29868ee26424a99c62f7",
+  "apk_v2_signature_valid": true,
+  "content_digest_valid": true,
+  "versionCode": 3,
+  "versionName": "3.0",
+  "native_dex_unchanged": true,
+  "resources_unchanged": true,
+  "web_asset_sha256": "50bf9b49d96a5765d3f8a9c2f0e1e0902f701129bcb7dcdc879dca644781ecab",
+  "same_signer_as_input": true,
+  "stored_entries_4_byte_aligned": true,
+  "verification": "Independent parsing + cryptography; Android SDK apksigner/device install not available in this runtime."
+}

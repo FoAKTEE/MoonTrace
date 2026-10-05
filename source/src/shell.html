@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="theme-color" content="#0f1320">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="月隐">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="description" content="月隐：在手机上记录狼人杀发言，查看关系与受狼数约束的概率。离线，无需账号。">
+<title>月隐 · 角色推演 v3</title>
+<!-- PWA -->
+<!-- STYLES -->
+</head>
+<body>
+<div class="app-shell">
+<header class="app-header">
+  <a class="brand" href="#" id="homeBtn" aria-label="月隐，回到关系图"><svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M18.5 2.5A13.5 13.5 0 1 0 29.5 21 11 11 0 0 1 18.5 2.5Z" fill="currentColor"/></svg><span class="brand-name">月隐</span></a>
+  <div class="header-right"><button class="phase-button" id="phaseBtn" aria-label="查看昼夜阶段"><span id="roundLabel">第 2 天</span></button><button class="icon-button" id="menuBtn" aria-label="更多与对局设置"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.7" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.7" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.7" fill="currentColor" stroke="none"/></svg></button></div>
+</header>
+<div class="session-line"><button id="settingsShortcut" class="plain session-info" aria-label="修改玩家与狼数"><span id="gameMeta">12 人局，4 狼</span><span data-icon="settings"></span></button><span class="demo-badge" id="demoBadge">演示数据</span><span class="save-indicator" id="saveStatus"><i></i>仅本机</span></div>
+<nav class="tabs" role="tablist" aria-label="视图切换"><button class="tab active" id="tab-graph" data-tab="graph" role="tab" aria-selected="true" aria-controls="view-graph">关系</button><button class="tab" id="tab-ranking" data-tab="ranking" role="tab" aria-selected="false" aria-controls="view-ranking">狼面</button><button class="tab" id="tab-history" data-tab="history" role="tab" aria-selected="false" aria-controls="view-history">记录<span class="count" id="eventCount">6</span></button></nav>
+<main>
+<section class="view" id="view-graph" role="tabpanel" aria-labelledby="tab-graph">
+  <div class="graph-toolbar"><div class="mini-segment" aria-label="关系筛选"><button id="focusEdges" class="active" aria-pressed="true">仅看 <span id="focusPlayer">06</span></button><button id="allEdges" aria-pressed="false">全场</button></div><div class="graph-tools"><button class="icon-button" id="zoomBtn" aria-label="放大关系图"><span data-icon="plus"></span></button><button class="text-button" id="linkBtn"><span data-icon="link"></span>连线</button></div></div>
+  <div class="graph-viewport" id="graphViewport"><div class="graph-canvas" id="graphCanvas"><svg class="graph-svg" id="graph" viewBox="0 0 400 400" role="group" aria-label="玩家圆环与双曲有向关系"></svg></div></div>
+  <div class="graph-legend"><span><i class="legend-line suspect"></i>怀疑</span><span><i class="legend-line trust"></i>保好</span><span><i class="legend-line vote"></i>投票</span><button class="plain label-toggle" id="labelsBtn" aria-pressed="true">评价已开</button></div>
+  <div id="selectedCard" class="selected-card"></div><div class="role-shortcuts"><button id="rolesShortcut"><span data-icon="tag"></span>角色与板子</button><button id="skillShortcut"><span data-icon="spark"></span>记技能</button></div>
+  <div class="graph-caption"><span id="graphHint">点玩家查看，点连线修改</span><button id="helpBtn" class="plain" aria-label="概率模型说明">数字怎么来的</button></div>
+</section>
+<section class="view" id="view-ranking" role="tabpanel" aria-labelledby="tab-ranking" hidden>
+  <div class="view-heading"><div><h1>谁的狼面更高</h1><p>每确认一条发言，排序就会更新</p></div><label class="toggle-label"><input id="aliveOnly" type="checkbox" checked><span>仅存活</span></label></div>
+  <div class="rank-summary" id="rankSummary"></div><div class="ranking" id="ranking"></div>
+  <p class="fineprint">概率来自录入的软证据与总狼数约束，未经真实对局校准，不等于身份结论。</p>
+</section>
+<section class="view" id="view-history" role="tabpanel" aria-labelledby="tab-history" hidden>
+  <div class="view-heading"><div><h1>每段发言，都有迹可循</h1><p id="historyCaption">按时间倒序，原文保留</p></div></div>
+  <div class="history-tools"><label class="toggle-label"><input id="currentRoundOnly" type="checkbox"><span>只看本轮</span></label><div class="row"><button class="text-button" id="undoBtn"><span data-icon="undo"></span>撤销</button><button class="icon-button" id="redoBtn" aria-label="重做"><span data-icon="redo"></span></button></div></div>
+  <div class="timeline" id="timeline"></div>
+</section>
+</main>
+</div>
+<div class="compose-dock"><div class="dock-inner"><button class="speaker-pick" id="dockSpeaker" aria-label="选择下一位发言者"><span class="speaker-number" id="dockSpeakerNumber">05</span><span class="speaker-caption">号发言<span class="chevron-down" aria-hidden="true">⌄</span></span></button><button class="compose-button" id="composeBtn"><span data-icon="pen"></span><span id="composeLabel">记发言</span></button></div></div>
+
+<dialog class="sheet speech-sheet" id="speechDialog" aria-labelledby="speechTitle"><div class="sheet-grip" aria-hidden="true"></div><div class="sheet-head"><div><h2 id="speechTitle">记一段发言</h2><p>先确认识别出的关系，再计入概率</p></div><button class="icon-button" data-close="speechDialog" aria-label="收起发言输入"><span class="close-glyph">×</span></button></div><div class="sheet-body">
+  <div class="speech-topline"><button id="speechSpeaker" class="speaker-pill"></button><label class="toggle-label"><input id="autoNext" type="checkbox" checked><span>自动下一位</span></label></div>
+  <label class="sr-only" for="speechInput">发言原文</label><textarea id="speechInput" maxlength="6000" placeholder="例如：我怀疑6号，4号像好人，这轮想投6号。" rows="5"></textarea>
+  <div class="input-meta"><span>可以直接用键盘的语音输入</span><span id="charCount">0 / 6000</span></div>
+  <div class="preview-heading"><h3 id="previewTitle">确认关系</h3><button class="text-button" id="manualPreview"><span data-icon="plus"></span>补充关系</button></div><div class="preview-tags" id="previewTags"></div><p class="parser-warnings" id="parserWarnings"></p>
+  <label id="roleClaimPreview" class="claim-preview" hidden><input id="recordRoleClaim" type="checkbox" checked><span id="roleClaimText"></span></label><div class="speech-note"><span data-icon="lock"></span><span>本地规则识别，点标签可以纠正。玩家自称的身份不会被当成事实。</span></div>
+</div><div class="sheet-actions"><button class="primary full" id="submitSpeech">确认并分析</button></div></dialog>
+
+<dialog class="sheet" id="speakerDialog" aria-labelledby="speakerTitle"><div class="sheet-grip" aria-hidden="true"></div><div class="sheet-head"><div><h2 id="speakerTitle">轮到谁发言</h2><p>出局玩家也可以选，用来补录遗言</p></div><button class="icon-button" data-close="speakerDialog" aria-label="关闭选择"><span class="close-glyph">×</span></button></div><div class="sheet-body"><div class="seat-grid" id="speakerGrid"></div></div></dialog>
+
+<dialog class="sheet" id="playerDialog" aria-labelledby="playerTitle"><div class="sheet-grip" aria-hidden="true"></div><div class="sheet-head"><div><h2 id="playerTitle">玩家详情</h2><p>出局不等于好人，自称不等于确认</p></div><button class="icon-button" data-close="playerDialog" aria-label="关闭玩家详情"><span class="close-glyph">×</span></button></div><div class="sheet-body" id="playerDetail"></div><div class="sheet-actions two-actions"><button id="playerLink"><span data-icon="link"></span>添加关系</button><button id="playerSpeak" class="primary"><span data-icon="pen"></span>记他的发言</button></div></dialog>
+
+<dialog class="sheet" id="relationDialog" aria-labelledby="relationTitle"><form id="relationForm"><div class="sheet-grip" aria-hidden="true"></div><div class="sheet-head"><div><h2 id="relationTitle">添加关系</h2><p>箭头从发言者指向被评价的人</p></div><button type="button" class="icon-button" data-close="relationDialog" aria-label="关闭关系编辑"><span class="close-glyph">×</span></button></div><div class="sheet-body"><div class="relation-endpoints"><label>谁说的<select id="relSource"></select></label><span data-icon="arrow-right"></span><label>说谁<select id="relTarget"></select></label></div><div class="type-grid" id="relationTypes"></div><label class="field-label" for="relLabel">一句话评价 <span>可选</span></label><input id="relLabel" maxlength="60" placeholder="例如：前后发言矛盾"><details class="advanced"><summary>证据强度<span id="relStrengthValue">0.80</span></summary><div class="advanced-content"><input id="relStrength" type="range" min="0" max="1" step="0.05" value="0.8" aria-label="证据强度"><p class="help">影响概率的权重，不是发言正确率。</p></div></details><p class="form-error" id="relationError" role="alert"></p></div><div class="sheet-actions relation-actions"><button type="button" class="icon-button danger" id="deleteRelation" aria-label="删除这条关系"><span data-icon="trash"></span></button><button type="submit" class="primary full">保存关系</button></div></form></dialog>
+
+<dialog class="sheet" id="menuDialog" aria-labelledby="menuTitle"><div class="sheet-grip" aria-hidden="true"></div><div class="sheet-head"><div><h2 id="menuTitle">对局与工具</h2></div><button class="icon-button" data-close="menuDialog" aria-label="关闭菜单"><span class="close-glyph">×</span></button></div><div class="sheet-body menu-body"><div class="menu-session" id="menuSession"></div><div class="menu-list"><button id="rolesMenuBtn"><span data-icon="tag"></span><span>角色与板子<small>角色配额、技能规则、自定义牌组</small></span><span data-icon="chevron-right"></span></button><button id="settingsBtn"><span data-icon="settings"></span><span>对局设置<small>人数、狼数与高级选项</small></span><span data-icon="chevron-right"></span></button><button id="newBtn"><span data-icon="plus"></span><span>新建对局<small>清空当前记录，开始下一局</small></span><span data-icon="chevron-right"></span></button></div><div class="menu-grid"><button id="importBtn"><span data-icon="upload"></span>导入存档</button><button id="exportBtn"><span data-icon="download"></span>导出存档</button><button id="modelBtn"><span data-icon="book"></span>模型说明</button><button id="loadDemo"><span data-icon="reset"></span>载入示例</button></div><p class="fineprint">发言只保存在这台设备上，不上传，也不需要账号。重要对局请导出备份。</p></div></dialog>
+
+<dialog class="sheet" id="settingsDialog" aria-labelledby="settingsTitle"><form id="settingsForm"><div class="sheet-grip" aria-hidden="true"></div><div class="sheet-head"><div><h2 id="settingsTitle">对局设置</h2><p>人数变更后，座位会重新排列</p></div><button type="button" class="icon-button" data-close="settingsDialog" aria-label="关闭设置"><span class="close-glyph">×</span></button></div><div class="sheet-body"><div class="preset-row"><button type="button" data-preset="9,3">9 人</button><button type="button" data-preset="12,4">12 人</button><button type="button" data-preset="16,6">16 人</button></div><div class="form-two"><label class="field-label">玩家人数<input id="settingN" type="number" inputmode="numeric" min="5" max="30" step="1" required></label><label class="field-label">狼的总数<input id="settingW" type="number" inputmode="numeric" min="0" max="30" step="1" required></label></div><p class="help">支持 5 到 30 人。狼数填总数，包含已经出局的狼。</p><label class="field-label" for="settingName">对局名称</label><input id="settingName" maxlength="40" placeholder="我的对局"><details class="advanced"><summary>高级推演选项</summary><div class="advanced-content"><label class="field-label">软证据敏感度<select id="settingSensitivity"><option value="0.65">保守 0.65×</option><option value="1">标准 1.00×</option><option value="1.35">敏感 1.35×</option></select></label><label class="field-label">跨轮证据保留<select id="settingDecay"><option value="1">不衰减</option><option value="0.9">缓慢衰减 0.90</option><option value="0.75">较快衰减 0.75</option></select></label><label class="toggle-label multiline"><input id="muteKnownWolves" type="checkbox" checked><span>确认狼人的发言不计分，仍保留连线</span></label></div></details><p class="help" id="settingsHint"></p><p class="form-error" id="settingsError" role="alert"></p></div><div class="sheet-actions"><button type="submit" id="applySettings" class="primary full">保存设置</button></div></form></dialog>
+
+<dialog class="sheet" id="phaseDialog" aria-labelledby="phaseTitle"><div class="sheet-grip" aria-hidden="true"></div><div class="sheet-head"><h2 id="phaseTitle">昼夜阶段</h2><button class="icon-button" data-close="phaseDialog" aria-label="关闭阶段"><span class="close-glyph">×</span></button></div><div class="sheet-body"><div class="phase-summary" id="phaseSummary"></div><p class="help">这里只推进时间，不会自动判定死亡或技能结果。出局玩家请在详情里标记。</p></div><div class="sheet-actions"><button id="nextPhase" class="primary full">进入下一阶段<span data-icon="arrow-right"></span></button></div></dialog>
+<dialog class="sheet" id="modelDialog" aria-labelledby="modelTitle"><div class="sheet-grip" aria-hidden="true"></div><div class="sheet-head"><div><h2 id="modelTitle">数字怎么来的</h2><p>模型估计，不是身份鉴定</p></div><button class="icon-button" data-close="modelDialog" aria-label="关闭模型说明"><span class="close-glyph">×</span></button></div><div class="sheet-body model-content"><!-- MODEL --></div></dialog>
+<dialog class="sheet" id="confirmDialog" aria-labelledby="confirmTitle"><div class="sheet-grip" aria-hidden="true"></div><div class="sheet-head"><h2 id="confirmTitle">确认操作</h2><button class="icon-button" data-close="confirmDialog" aria-label="取消"><span class="close-glyph">×</span></button></div><div class="sheet-body"><p id="confirmText"></p></div><div class="sheet-actions two-actions"><button data-close="confirmDialog">取消</button><button id="confirmAction" class="primary">确认</button></div></dialog>
+<!-- ROLE_DIALOGS -->
+<input id="importFile" type="file" accept=".json,application/json" hidden><div id="toast" class="toast" role="status" aria-live="polite"></div>
+<noscript><div class="noscript">请在启用 JavaScript 的浏览器中打开此网页。附件预览器可能不运行交互代码。</div></noscript>
+<!-- SCRIPT -->
+</body>
+</html>
