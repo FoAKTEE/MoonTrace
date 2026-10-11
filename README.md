@@ -20,3 +20,7 @@
 4. 查看狼面概率；菜单中可导出存档备份。
 
 数据仅保存在本机。
+
+## AI 识别与 iMessage（可选）
+
+记发言时可以让 Claude 识别关系，也可以在 iMessage 群里直接打字记录、网页自动更新关系图。狼面概率始终在本机计算，不交给 AI。需要自己部署服务器：见 [server/README.md](server/README.md) 和 [imessage/README.md](imessage/README.md)。开启后，发言原文会发到你的服务器和 Anthropic 解析。

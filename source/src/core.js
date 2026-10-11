@@ -31,14 +31,20 @@ const ICONS = {
 };
 const icon = name => `<svg class="icon" viewBox="0 0 16 16" aria-hidden="true">${ICONS[name]||ICONS.info}</svg>`;
 function paintIcons(root=document){root.querySelectorAll('[data-icon]').forEach(el=>{el.outerHTML=icon(el.dataset.icon)});}
+/* lambda: log-likelihood ratio for "target is a wolf" when the speaker is good; wolf: the same when the speaker
+ * is a wolf. Wolves tend to accuse villagers, shield teammates and fake-seer 查杀 villagers, but how far they
+ * invert is uncertain, so the wolf reading sits halfway between "same as a villager" and "fully inverted".
+ * 查杀/金水 use half of a seer's nominal ×12, because claimed seers are often fake. Hand-set, then checked for
+ * robustness on simulated games and one recorded game (tests/model_eval.mjs); not trained on real data. */
+const halfway=(good,inverted)=>good+(inverted-good)/2,SEER=Math.log(12)/2;
 const TYPES = Object.freeze({
- suspect:{label:'怀疑',short:'疑狼',color:'#ef7b69',lambda:Math.log(1.8)},
- trust:{label:'保好',short:'保好',color:'#62c79e',lambda:-Math.log(1.8)},
- vote:{label:'投票',short:'投票',color:'#ab93ec',lambda:Math.log(1.35)},
- checkW:{label:'声称查杀',short:'查杀?',color:'#f0b06b',lambda:Math.log(3)},
- checkG:{label:'声称金水',short:'金水?',color:'#8fd9b8',lambda:-Math.log(3)},
- skill:{label:'技能记录',short:'技能',color:'#e6d4a3',lambda:0},
- note:{label:'备注',short:'备注',color:'#8b91a8',lambda:0}
+ suspect:{label:'怀疑',short:'疑狼',color:'#ef7b69',lambda:Math.log(1.8),wolf:halfway(Math.log(1.8),-Math.log(2.5))},
+ trust:{label:'保好',short:'保好',color:'#62c79e',lambda:-Math.log(1.8),wolf:halfway(-Math.log(1.8),Math.log(1.6))},
+ vote:{label:'投票',short:'投票',color:'#ab93ec',lambda:Math.log(1.35),wolf:halfway(Math.log(1.35),-Math.log(2))},
+ checkW:{label:'声称查杀',short:'查杀?',color:'#f0b06b',lambda:SEER,wolf:halfway(SEER,-Math.log(6)/2)},
+ checkG:{label:'声称金水',short:'金水?',color:'#8fd9b8',lambda:-SEER,wolf:halfway(-SEER,Math.log(1.5)/2)},
+ skill:{label:'技能记录',short:'技能',color:'#e6d4a3',lambda:0,wolf:0},
+ note:{label:'备注',short:'备注',color:'#8b91a8',lambda:0,wolf:0}
 });
 function newState(n=12,wolves=4){return {version:VERSION,name:'我的对局',n,wolves,round:1,phase:'day',demo:false,
  players:Array.from({length:n},(_,i)=>({id:i+1,alive:true,fixed:'unknown',role:'',weight:.65,...playerRoleDefaults()})),
@@ -70,7 +76,13 @@ function cardinalityMarginals(scores,K){
  for(let i=m-1;i>=0;i--)for(let k=0;k<=K;k++)b[i][k]=logAdd(b[i+1][k],k>0?b[i+1][k-1]+scores[i]:-Infinity);
  const Z=f[m][K];return scores.map((s,i)=>{let part=-Infinity;for(let k=0;k<K;k++)part=logAdd(part,f[i][k]+b[i+1][K-1-k]);return clamp(Math.exp(s+part-Z),0,1);});
 }
-function inferBase(s){
+// A firm statement (.85) from a default-weight source (.65) applies the table above ×1.1.
+const REF_MULT=.85*.65/1.1,PAIR_CAP=1.5,EXACT_LIMIT=1e6,CLAIM_KAPPA=Math.log(1/.12);
+/* Log-odds shift for how a player died. Wolves rarely knife a teammate; only wolves can self-explode. */
+const DEATH_PRIOR=Object.freeze({attack:-3,explode:5,explodeTake:-1.5,poison:.7});
+/** Per ordered pair i→j: summed log-LRs if i is good (g) and if i is a wolf (w), deduped per round, decayed,
+ * and capped at 1.5× the strongest single statement so repetition is not counted as new evidence. */
+function stancePairs(s){
  const latest=new Map(),byId=new Map(s.players.map(p=>[p.id,p]));
  for(const event of s.events){if(event.round>s.round)continue;for(const r of event.relations){
   if(TYPES[r.type].lambda===0)continue;
@@ -79,21 +91,93 @@ function inferBase(s){
  const pairs=new Map();
  for(const r of latest.values()){
   const source=byId.get(r.from);if(!source||!byId.has(r.to))continue;
+  // 查杀/金水 only carry seer-level weight from someone presenting as seer; otherwise they are ordinary stances.
+  const seer=source.claimedRole==='seer'||source.confirmedRole==='seer',type=!seer&&r.type==='checkW'?'suspect':!seer&&r.type==='checkG'?'trust':r.type;
   const muted=s.muteKnownWolves&&source.fixed==='wolf';
-  const raw=TYPES[r.type].lambda*r.strength*(muted?0:source.weight)*Math.pow(s.decay,Math.max(0,s.round-r.round));
-  const key=`${r.from}:${r.to}`;if(!pairs.has(key))pairs.set(key,{from:r.from,to:r.to,raw:0,contribution:0,entries:[],muted});
-  const pair=pairs.get(key);pair.raw+=raw;pair.entries.push({...r,raw,muted});
+  const m=muted?0:r.strength*source.weight/REF_MULT*s.sensitivity*Math.pow(s.decay,Math.max(0,s.round-r.round));
+  const key=`${r.from}:${r.to}`;if(!pairs.has(key))pairs.set(key,{from:r.from,to:r.to,g:0,w:0,capG:0,capW:0,contribution:0,entries:[],muted});
+  const pair=pairs.get(key),g=TYPES[type].lambda*m,w=TYPES[type].wolf*m;
+  pair.g+=g;pair.w+=w;pair.capG=Math.max(pair.capG,PAIR_CAP*Math.abs(g));pair.capW=Math.max(pair.capW,PAIR_CAP*Math.abs(w));pair.entries.push({...r,type,g,w,muted});
  }
- const scores=Array(s.n).fill(0),evidence=Array.from({length:s.n},()=>[]);
+ for(const pair of pairs.values()){pair.g=clamp(pair.g,-pair.capG,pair.capG);pair.w=clamp(pair.w,-pair.capW,pair.capW);}
+ return {pairs,activeEntries:latest.size};
+}
+/** More good players claiming a unique role than the board holds means at least one of them is lying. */
+function claimConflicts(s){
+ const groups=new Map();
+ for(const p of s.players){const r=getRole(s,p.claimedRole);if(!r||p.confirmedRole===r.id||r.camp!=='good'||r.group==='民')continue;if(!groups.has(r.id))groups.set(r.id,[]);groups.get(r.id).push(p.id);}
+ const out=[];
+ for(const [id,members] of groups){
+  const cap=Math.max(0,(s.roles?.enabled?(s.roles.counts[id]||0):1)-s.players.filter(p=>p.confirmedRole===id).length);
+  if(members.length>cap)out.push({role:id,name:getRole(s,id).name,members,cap});
+ }
+ return out;
+}
+function choose(n,k){let c=1;for(let i=1;i<=k;i++){c=c*(n-k+i)/i;if(c>1e12)return Infinity;}return c;}
+/** Exact marginals of exp(Σa·x + Σ J·xᵢxⱼ + claim terms) over all ways to pick K of m, by enumeration. */
+function exactMarginals(a,J,K,factors){
+ const m=a.length,chosen=new Int32Array(K),acc=new Float64Array(m),of=Array.from({length:m},()=>[]);let Z=0,ref=-Infinity;
+ factors.forEach(f=>{f.hit=0;f.local.forEach(j=>of[j].push(f));});
+ (function dfs(start,depth,E){
+  if(depth===K){
+   let e=E;for(const f of factors){const good=f.constGood+f.local.length-f.hit;if(good>f.cap)e-=CLAIM_KAPPA*(good-f.cap);}
+   if(e>ref){const scale=Math.exp(ref-e);Z*=scale;for(let j=0;j<m;j++)acc[j]*=scale;ref=e;}
+   const w=Math.exp(e-ref);Z+=w;for(let t=0;t<K;t++)acc[chosen[t]]+=w;return;
+  }
+  for(let j=start;j<=m-(K-depth);j++){
+   let d=a[j];const row=j*m;for(let t=0;t<depth;t++)d+=J[row+chosen[t]];
+   chosen[depth]=j;for(const f of of[j])f.hit++;dfs(j+1,depth+1,E+d);for(const f of of[j])f.hit--;
+  }
+ })(0,0,0);
+ return Array.from(acc,v=>clamp(v/Z,0,1));
+}
+/** Damped mean-field for very large tables; the cardinality constraint itself stays exact via the DP. */
+function meanFieldMarginals(a,J,K,factors){
+ const m=a.length;let p=cardinalityMarginals(a,K);
+ for(let it=0;it<400;it++){
+  const field=a.slice();
+  for(let j=0;j<m;j++){let f=0;const row=j*m;for(let i=0;i<m;i++)f+=J[row+i]*p[i];field[j]+=f;}
+  for(const fac of factors)for(const j of fac.local){
+   // Becoming a wolf removes j from the good claimants: worth κ·P(other good claimants ≥ cap).
+   let dist=[1];for(const i of fac.local)if(i!==j){const q=1-p[i],next=Array(dist.length+1).fill(0);dist.forEach((v,c)=>{next[c]+=v*(1-q);next[c+1]+=v*q;});dist=next;}
+   field[j]+=CLAIM_KAPPA*dist.reduce((sum,v,c)=>sum+(c+fac.constGood>=fac.cap?v:0),0);
+  }
+  const next=cardinalityMarginals(field,K);let diff=0;
+  for(let j=0;j<m;j++){const v=.5*p[j]+.5*next[j];diff=Math.max(diff,Math.abs(v-p[j]));p[j]=v;}
+  if(diff<1e-9)break;
+ }
+ return p;
+}
+/** Joint camp inference. A stance i→j adds g·xⱼ if i is good and w·xⱼ if i is a wolf, i.e. g·xⱼ + (w−g)·xᵢxⱼ:
+ * who is believable and who is a wolf are solved together, under the global wolf count. */
+function inferBase(s){
+ const {pairs,activeEntries}=stancePairs(s),conflicts=claimConflicts(s);
+ const knownWolves=s.players.filter(p=>p.fixed==='wolf').length,unknown=s.players.filter(p=>p.fixed==='unknown'),K=s.wolves-knownWolves,m=unknown.length;
+ const local=new Map(unknown.map((p,i)=>[p.id,i])),a=new Float64Array(m),J=new Float64Array(m*m),prior=Array(s.n).fill(0);
+ for(const p of s.players)if(!p.alive&&DEATH_PRIOR[p.deathReason])prior[p.id-1]=DEATH_PRIOR[p.deathReason];
+ unknown.forEach((p,i)=>a[i]=prior[p.id-1]);
  for(const pair of pairs.values()){
-  pair.contribution=clamp(pair.raw,-1.2,1.2)*s.sensitivity;
-  scores[pair.to-1]+=pair.contribution;evidence[pair.to-1].push(pair);
+  const i=local.get(pair.from),j=local.get(pair.to),from=s.players[pair.from-1],to=s.players[pair.to-1];
+  if(j!==undefined){
+   if(i!==undefined){a[j]+=pair.g;J[i*m+j]+=pair.w-pair.g;J[j*m+i]+=pair.w-pair.g;}
+   else a[j]+=from.fixed==='wolf'?pair.w:pair.g;
+  }else if(i!==undefined&&to.fixed==='wolf')a[i]+=pair.w-pair.g; // defending a known wolf is telling; accusing one is not
  }
- const knownWolves=s.players.filter(p=>p.fixed==='wolf').length,unknown=s.players.filter(p=>p.fixed==='unknown'),K=s.wolves-knownWolves;
- const unknownPs=cardinalityMarginals(unknown.map(p=>scores[p.id-1]),K);
+ const factors=conflicts.map(c=>({cap:c.cap,constGood:c.members.filter(id=>s.players[id-1].fixed==='good').length,local:c.members.map(id=>local.get(id)).filter(j=>j!==undefined)})).filter(f=>f.local.length);
+ const exact=choose(m,K)<=EXACT_LIMIT;
+ const unknownPs=K<=0||K>=m?cardinalityMarginals(Array.from(a),K):exact?exactMarginals(a,J,K,factors):meanFieldMarginals(a,J,K,factors);
  const ps=s.players.map(p=>p.fixed==='wolf'?1:0);unknown.forEach((p,i)=>ps[p.id-1]=unknownPs[i]);
- return {ps,scores,evidence,K,knownWolves,unknownCount:unknown.length,baseUnknown:unknown.length?K/unknown.length:0,
- sum:ps.reduce((a,b)=>a+b,0),expectedAlive:s.players.reduce((a,p)=>a+(p.alive?ps[p.id-1]:0),0),activeEntries:latest.size};
+ const scores=Array(s.n).fill(0),evidence=Array.from({length:s.n},()=>[]),own=Array.from({length:s.n},()=>[]),notes=Array.from({length:s.n},()=>[]);
+ for(const pair of pairs.values()){
+  const q=ps[pair.from-1];pair.speakerP=q;pair.contribution=pair.muted?0:(1-q)*pair.g+q*pair.w;
+  scores[pair.to-1]+=pair.contribution;evidence[pair.to-1].push(pair);
+  // What the speaker's own stance says about the speaker: siding with a likely wolf is telling.
+  const self=pair.muted?0:(pair.w-pair.g)*ps[pair.to-1];if(Math.abs(self)>=.01)own[pair.from-1].push({to:pair.to,value:self,targetP:ps[pair.to-1],entries:pair.entries});
+ }
+ s.players.forEach((p,i)=>{if(prior[i]){scores[i]+=prior[i];notes[i].push({text:`死因：${DEATH_REASONS[p.deathReason]}`,value:prior[i]});}});
+ for(const c of conflicts)for(const id of c.members)notes[id-1].push({text:`${c.members.filter(x=>x!==id).map(x=>x+'号').join('、')} 也自称${c.name}，板子只有 ${c.cap} 个空位`,value:null});
+ return {ps,scores,evidence,own,notes,exact,K,knownWolves,unknownCount:m,baseUnknown:m?K/m:0,
+ sum:ps.reduce((x,y)=>x+y,0),expectedAlive:s.players.reduce((x,p)=>x+(p.alive?ps[p.id-1]:0),0),activeEntries};
 }
 function assertCore(s){
  if(!Number.isInteger(s.n)||s.n<5||s.n>30)throw Error('玩家人数须为 5–30 的整数。');
@@ -128,11 +212,39 @@ function sanitizeState(input){
   const relations=e.relations.map(r=>{
    if(!Number.isInteger(r.from)||!Number.isInteger(r.to)||r.from<1||r.from>n||r.to<1||r.to>n||r.from===r.to||!Object.prototype.hasOwnProperty.call(TYPES,r.type)||!finite(r.strength)||r.strength<0||r.strength>1)throw Error('存在无效关系。');
    return makeRelation(r.from,r.to,r.type,String(r.label||TYPES[r.type].label).slice(0,60),r.strength);
-  });return {...makeEvent(e.speaker,String(e.text||'').slice(0,6000),relations,e.round,e.phase==='night'?'night':'day',Boolean(e.manual)),createdAt:finite(e.createdAt)?e.createdAt:Date.now(),...(e.kind==='skill'?{kind:'skill',skill:normalizeSkill(e,s)}:{})};
+  });return {...makeEvent(e.speaker,String(e.text||'').slice(0,6000),relations,e.round,e.phase==='night'?'night':'day',Boolean(e.manual)),createdAt:finite(e.createdAt)?e.createdAt:Date.now(),...(e.kind==='skill'?{kind:'skill',skill:normalizeSkill(e,s)}:{}),...(['ai','imessage'].includes(e.via)?{via:e.via}:{}),...(typeof e.rid==='string'&&/^[\w:-]{1,80}$/.test(e.rid)?{rid:e.rid}:{})};
  });if(totalRelations>10000)throw Error('关系总数过多。');
  s.selected=Number.isInteger(input.selected)?clamp(input.selected,1,n):1;
  const l=input.layout||{};s.layout={rho:finite(l.rho)?clamp(l.rho,.62,.87):.83,rotation:finite(l.rotation)?l.rotation%(Math.PI*2):0,focus:!!l.focus,labels:l.labels!==false};
  assertCore(s);return s;
+}
+/** One relation per (from,to): a weaker same-direction claim never replaces a stronger one; an opposite one does. */
+function mergeRelation(relations,next){
+ const old=relations.findIndex(r=>r.from===next.from&&r.to===next.to);
+ if(old<0){relations.push(next);return;}
+ const r=relations[old];if(Math.sign(TYPES[r.type].lambda)===Math.sign(TYPES[next.type].lambda)&&Math.abs(TYPES[r.type].lambda)>Math.abs(TYPES[next.type].lambda))return;relations[old]=next;
+}
+/** Relations proposed by the optional remote parser are untrusted input: only soft-evidence types survive,
+ * seats are range-checked, and strength comes from the same fixed hedge levels as the local parser. */
+const REMOTE_TYPES=['suspect','trust','vote','checkW','checkG'];
+function normalizeRemote(payload,n,speaker=0){
+ if(!payload||!Array.isArray(payload.events))throw Error('服务器返回的格式无效。');
+ const events=[],warnings=[];const warn=x=>{x=String(x).trim().slice(0,120);if(x&&!warnings.includes(x))warnings.push(x);};
+ (Array.isArray(payload.warnings)?payload.warnings:[]).slice(0,8).forEach(warn);
+ for(const raw of payload.events.slice(0,80)){
+  const who=speaker||raw?.speaker;
+  if(!Number.isInteger(who)||who<1||who>n){warn(`发言者编号 ${raw?.speaker} 不在 1–${n} 内，已跳过。`);continue;}
+  const relations=[];
+  for(const r of (Array.isArray(raw.relations)?raw.relations:[]).slice(0,120)){
+   if(!r||!REMOTE_TYPES.includes(r.type))continue;
+   if(speaker&&r.from!==speaker){warn('识别结果含其他人的表态，未归给当前发言者。');continue;}
+   if(!Number.isInteger(r.from)||!Number.isInteger(r.to)||r.from<1||r.to<1||r.from>n||r.to>n){warn(`发现超出当前人数的编号，未计入。`);continue;}
+   if(r.from===r.to)continue;
+   mergeRelation(relations,makeRelation(r.from,r.to,r.type,String(r.label||'').trim().slice(0,60),r.hedged===true?.65:.85));
+  }
+  events.push({speaker:who,round:Number.isInteger(raw.round)&&raw.round>0?raw.round:0,text:String(raw.text||'').trim().slice(0,6000),relations,claim:String(raw.claim||'').trim().slice(0,20)});
+ }
+ return {events,warnings};
 }
 function chineseNumeral(t){const m={'一':1,'二':2,'两':2,'三':3,'四':4,'五':5,'六':6,'七':7,'八':8,'九':9};if(t==='十')return 10;if(t.includes('十')){const a=t.split('十');return (a[0]?m[a[0]]:1)*10+(a[1]?m[a[1]]:0);}return m[t]||t;}
 /** Deliberately conservative clause parser. Uncertain language is not forced into evidence. */
@@ -149,9 +261,7 @@ function parseSpeech(raw,speaker,n){
  const warn=x=>{if(!warnings.includes(x))warnings.push(x);};
  function add(from,to,type,label,strength=.8){
   if(to===from)return;if(to<1||to>n){warn(`发现超出当前人数的编号 ${to}，未计入。`);return;}
-  const old=relations.findIndex(r=>r.from===from&&r.to===to);
-  const next=makeRelation(from,to,type,label,strength);
-  if(old>=0){const r=relations[old];if(Math.sign(TYPES[r.type].lambda)===Math.sign(TYPES[type].lambda)&&Math.abs(TYPES[r.type].lambda)>Math.abs(TYPES[type].lambda))return;relations[old]=next;}else relations.push(next);
+  mergeRelation(relations,makeRelation(from,to,type,label,strength));
  }
  for(const clause of clauses){
   if(/如果|假如|假设|要是|除非|一狼|一只狼|至少.*狼|同边|一组|共边|二选一|(?:出|投)(?:一|1)个/.test(clause)){

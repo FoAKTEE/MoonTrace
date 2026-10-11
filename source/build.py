@@ -11,11 +11,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 src = ROOT / 'src'
 shell = (src / 'shell.html').read_text(encoding='utf-8')
-shell = shell.replace('<!-- STYLES -->', '<style>\n' + (src / 'style.css').read_text(encoding='utf-8') + '\n' + (src / 'roles.css').read_text(encoding='utf-8') + '\n</style>')
+shell = shell.replace('<!-- STYLES -->', '<style>\n' + (src / 'style.css').read_text(encoding='utf-8') + '\n' + (src / 'roles.css').read_text(encoding='utf-8') + '\n' + (src / 'ai.css').read_text(encoding='utf-8') + '\n</style>')
 shell = shell.replace('<!-- ROLE_DIALOGS -->', (src / 'roles-dialogs.html').read_text(encoding='utf-8'))
+shell = shell.replace('<!-- AI_DIALOGS -->', (src / 'ai-dialogs.html').read_text(encoding='utf-8'))
 shell = shell.replace('<!-- MODEL -->', (src / 'model.html').read_text(encoding='utf-8'))
 js = (src / 'core.js').read_text(encoding='utf-8') + '\n' + (src / 'roles-core.js').read_text(encoding='utf-8') + '\n' + (src / 'ui.js').read_text(encoding='utf-8')
 js = js.replace('/* ROLE_UI_MODULE */', (src / 'roles-ui.js').read_text(encoding='utf-8'))
+js = js.replace('/* AI_UI_MODULE */', (src / 'ai-ui.js').read_text(encoding='utf-8'))
 shell = shell.replace('<!-- SCRIPT -->', '<script>\n' + js + '\n</script>')
 
 standalone = shell.replace('<!-- PWA -->\n', '')

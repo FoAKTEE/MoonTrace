@@ -1,0 +1,11 @@
+<dialog class="sheet" id="aiDialog" aria-labelledby="aiTitle"><form id="aiForm" novalidate><div class="sheet-grip" aria-hidden="true"></div><div class="sheet-head"><div><h2 id="aiTitle">AI 识别与 iMessage</h2><p>可选功能，需要你自己部署的服务器</p></div><button type="button" class="icon-button" data-close="aiDialog" aria-label="关闭 AI 设置"><span class="close-glyph">×</span></button></div><div class="sheet-body">
+  <p class="help">开启后，点「AI 识别」或收到 iMessage 记录时，原文会发到下面的服务器，由 Anthropic 的 Claude 解析成“怀疑 / 保好 / 投票 / 查杀 / 金水”关系。狼面概率仍在这台设备上用原模型计算，不交给 AI。</p>
+  <label class="field-label" for="aiEndpoint">服务器地址</label><input id="aiEndpoint" type="url" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://moontrace.你的子域.workers.dev">
+  <label class="field-label" for="aiToken">访问口令</label><input id="aiToken" type="password" autocomplete="off" placeholder="部署时设置的 MOONTRACE_TOKEN">
+  <div class="ai-test-row"><button type="button" id="aiTest">测试连接</button><span id="aiTestResult" role="status"></span></div>
+  <h3 class="ai-section-title">iMessage 收件箱</h3>
+  <p class="help">在 Mac 上运行 <code>imessage/relay.py</code> 后，指定聊天里打的字会进入这个房间。网页每几秒同步一次，直接记入当前轮次；记录页可以撤销，iMessage 里回复「撤销」也行。</p>
+  <label class="field-label" for="aiRoom">房间号</label><div class="ai-room-row"><input id="aiRoom" maxlength="32" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="点「新建」生成"><button type="button" id="aiNewRoom">新建</button></div>
+  <label class="toggle-label multiline"><input id="aiInbox" type="checkbox"><span>接收这个房间的 iMessage 记录</span></label>
+  <p class="help" id="aiStatus" role="status"></p><p class="form-error" id="aiError" role="alert"></p>
+</div><div class="sheet-actions two-actions"><button type="button" id="aiClear">停用并清除</button><button type="submit" class="primary">保存</button></div></form></dialog>

@@ -1,0 +1,1162 @@
+{
+ "version": 2,
+ "name": "真实对局 · 第二局（16人，手工转录）",
+ "n": 16,
+ "wolves": 6,
+ "round": 4,
+ "phase": "day",
+ "demo": false,
+ "players": [
+  {
+   "id": 1,
+   "fixed": "unknown",
+   "alive": false,
+   "role": "",
+   "weight": 0.65,
+   "claimedRole": "villager",
+   "confirmedRole": "",
+   "thirdParty": false,
+   "deathReason": "unknown"
+  },
+  {
+   "id": 2,
+   "fixed": "unknown",
+   "alive": true,
+   "role": "",
+   "weight": 0.65,
+   "claimedRole": "seer",
+   "confirmedRole": "",
+   "thirdParty": false,
+   "deathReason": "unknown"
+  },
+  {
+   "id": 3,
+   "fixed": "unknown",
+   "alive": false,
+   "role": "",
+   "weight": 0.65,
+   "claimedRole": "",
+   "confirmedRole": "",
+   "thirdParty": false,
+   "deathReason": "unknown"
+  },
+  {
+   "id": 4,
+   "fixed": "unknown",
+   "alive": true,
+   "role": "",
+   "weight": 0.65,
+   "claimedRole": "villager",
+   "confirmedRole": "",
+   "thirdParty": false,
+   "deathReason": "unknown"
+  },
+  {
+   "id": 5,
+   "fixed": "unknown",
+   "alive": true,
+   "role": "",
+   "weight": 0.65,
+   "claimedRole": "villager",
+   "confirmedRole": "",
+   "thirdParty": false,
+   "deathReason": "unknown"
+  },
+  {
+   "id": 6,
+   "fixed": "unknown",
+   "alive": true,
+   "role": "",
+   "weight": 0.65,
+   "claimedRole": "",
+   "confirmedRole": "",
+   "thirdParty": false,
+   "deathReason": "unknown"
+  },
+  {
+   "id": 7,
+   "fixed": "unknown",
+   "alive": true,
+   "role": "",
+   "weight": 0.65,
+   "claimedRole": "",
+   "confirmedRole": "",
+   "thirdParty": false,
+   "deathReason": "unknown"
+  },
+  {
+   "id": 8,
+   "fixed": "unknown",
+   "alive": true,
+   "role": "",
+   "weight": 0.65,
+   "claimedRole": "",
+   "confirmedRole": "",
+   "thirdParty": false,
+   "deathReason": "unknown"
+  },
+  {
+   "id": 9,
+   "fixed": "unknown",
+   "alive": true,
+   "role": "",
+   "weight": 0.65,
+   "claimedRole": "seer",
+   "confirmedRole": "",
+   "thirdParty": false,
+   "deathReason": "unknown"
+  },
+  {
+   "id": 10,
+   "fixed": "unknown",
+   "alive": true,
+   "role": "",
+   "weight": 0.65,
+   "claimedRole": "villager",
+   "confirmedRole": "",
+   "thirdParty": false,
+   "deathReason": "unknown"
+  },
+  {
+   "id": 11,
+   "fixed": "unknown",
+   "alive": false,
+   "role": "",
+   "weight": 0.65,
+   "claimedRole": "",
+   "confirmedRole": "",
+   "thirdParty": false,
+   "deathReason": "attack"
+  },
+  {
+   "id": 12,
+   "fixed": "unknown",
+   "alive": false,
+   "role": "",
+   "weight": 0.65,
+   "claimedRole": "villager",
+   "confirmedRole": "",
+   "thirdParty": false,
+   "deathReason": "unknown"
+  },
+  {
+   "id": 13,
+   "fixed": "unknown",
+   "alive": false,
+   "role": "",
+   "weight": 0.65,
+   "claimedRole": "villager",
+   "confirmedRole": "",
+   "thirdParty": false,
+   "deathReason": "unknown"
+  },
+  {
+   "id": 14,
+   "fixed": "unknown",
+   "alive": false,
+   "role": "",
+   "weight": 0.65,
+   "claimedRole": "villager",
+   "confirmedRole": "",
+   "thirdParty": false,
+   "deathReason": "unknown"
+  },
+  {
+   "id": 15,
+   "fixed": "unknown",
+   "alive": true,
+   "role": "",
+   "weight": 0.65,
+   "claimedRole": "villager",
+   "confirmedRole": "",
+   "thirdParty": false,
+   "deathReason": "unknown"
+  },
+  {
+   "id": 16,
+   "fixed": "unknown",
+   "alive": false,
+   "role": "",
+   "weight": 0.65,
+   "claimedRole": "",
+   "confirmedRole": "",
+   "thirdParty": false,
+   "deathReason": "vote"
+  }
+ ],
+ "roles": {
+  "enabled": false,
+  "counts": {},
+  "custom": [],
+  "rules": {
+   "guardRepeat": false,
+   "witchDouble": false,
+   "witchSelfSave": "first",
+   "poisonStopsShot": true,
+   "blackWolfSelfExplode": false,
+   "note": ""
+  }
+ },
+ "sheriff": 0,
+ "events": [
+  {
+   "speaker": 1,
+   "text": "*1（预言家，三个人认为是好人）->二号-共边-补位跳法（2 30%预言家）->9号退水 ->不退水 ->无法飞预言家好人 ->14号 -> 3狼 458发言好 -> 9神 - 女巫 -> 14 2 狼 - 建议出2/3 -> 456 14 ｜ 放逐投票 → 16",
+   "relations": [
+    {
+     "from": 1,
+     "to": 3,
+     "type": "suspect",
+     "label": "狼",
+     "strength": 0.85,
+     "id": "g2e0r0"
+    },
+    {
+     "from": 1,
+     "to": 4,
+     "type": "trust",
+     "label": "发言好",
+     "strength": 0.85,
+     "id": "g2e0r1"
+    },
+    {
+     "from": 1,
+     "to": 5,
+     "type": "trust",
+     "label": "发言好",
+     "strength": 0.85,
+     "id": "g2e0r2"
+    },
+    {
+     "from": 1,
+     "to": 8,
+     "type": "trust",
+     "label": "发言好",
+     "strength": 0.85,
+     "id": "g2e0r3"
+    },
+    {
+     "from": 1,
+     "to": 9,
+     "type": "trust",
+     "label": "神",
+     "strength": 0.85,
+     "id": "g2e0r4"
+    },
+    {
+     "from": 1,
+     "to": 14,
+     "type": "suspect",
+     "label": "狼",
+     "strength": 0.85,
+     "id": "g2e0r5"
+    },
+    {
+     "from": 1,
+     "to": 2,
+     "type": "suspect",
+     "label": "狼",
+     "strength": 0.85,
+     "id": "g2e0r6"
+    },
+    {
+     "from": 1,
+     "to": 16,
+     "type": "vote",
+     "label": "投票",
+     "strength": 0.85,
+     "id": "g2e0r7"
+    }
+   ],
+   "round": 1,
+   "phase": "day",
+   "manual": false,
+   "id": "g2e0",
+   "createdAt": 1700000000000
+  },
+  {
+   "speaker": 2,
+   "text": "*2（自称预言家，针对9）->1金水 查验9 10 14 ->踩5 观察4 5 6 13 ｜ 放逐投票 → 3 ｜ 放逐投票 → 10",
+   "relations": [
+    {
+     "from": 2,
+     "to": 1,
+     "type": "checkG",
+     "label": "金水",
+     "strength": 0.85,
+     "id": "g2e1r0"
+    },
+    {
+     "from": 2,
+     "to": 5,
+     "type": "suspect",
+     "label": "踩",
+     "strength": 0.85,
+     "id": "g2e1r1"
+    },
+    {
+     "from": 2,
+     "to": 9,
+     "type": "suspect",
+     "label": "针对9",
+     "strength": 0.65,
+     "id": "g2e1r2"
+    },
+    {
+     "from": 2,
+     "to": 3,
+     "type": "vote",
+     "label": "投票",
+     "strength": 0.85,
+     "id": "g2e1r3"
+    },
+    {
+     "from": 2,
+     "to": 10,
+     "type": "vote",
+     "label": "投票",
+     "strength": 0.85,
+     "id": "g2e1r4"
+    }
+   ],
+   "round": 1,
+   "phase": "day",
+   "manual": false,
+   "id": "g2e1",
+   "createdAt": 1700000060000
+  },
+  {
+   "speaker": 3,
+   "text": "3（自称好人）——信息缺失 给2不是9",
+   "relations": [
+    {
+     "from": 3,
+     "to": 2,
+     "type": "trust",
+     "label": "给2",
+     "strength": 0.65,
+     "id": "g2e2r0"
+    }
+   ],
+   "round": 1,
+   "phase": "day",
+   "manual": false,
+   "id": "g2e2",
+   "createdAt": 1700000120000
+  },
+  {
+   "speaker": 4,
+   "text": "4（自称好人）——留给9（轻易跳了预言家）14 ｜ 放逐投票 → 16",
+   "relations": [
+    {
+     "from": 4,
+     "to": 16,
+     "type": "vote",
+     "label": "投票",
+     "strength": 0.85,
+     "id": "g2e3r0"
+    }
+   ],
+   "round": 1,
+   "phase": "day",
+   "manual": false,
+   "id": "g2e3",
+   "createdAt": 1700000180000
+  },
+  {
+   "speaker": 5,
+   "text": "5（自称好人，弃票）——不看好14号",
+   "relations": [
+    {
+     "from": 5,
+     "to": 14,
+     "type": "suspect",
+     "label": "不看好",
+     "strength": 0.65,
+     "id": "g2e4r0"
+    }
+   ],
+   "round": 1,
+   "phase": "day",
+   "manual": false,
+   "id": "g2e4",
+   "createdAt": 1700000240000
+  },
+  {
+   "speaker": 6,
+   "text": "6（自称好人，弃票）——没有信息，9好人 ｜ 放逐投票 → 16",
+   "relations": [
+    {
+     "from": 6,
+     "to": 9,
+     "type": "trust",
+     "label": "好人",
+     "strength": 0.85,
+     "id": "g2e5r0"
+    },
+    {
+     "from": 6,
+     "to": 16,
+     "type": "vote",
+     "label": "投票",
+     "strength": 0.85,
+     "id": "g2e5r1"
+    }
+   ],
+   "round": 1,
+   "phase": "day",
+   "manual": false,
+   "id": "g2e5",
+   "createdAt": 1700000300000
+  },
+  {
+   "speaker": 7,
+   "text": "7（自称好人）——9警长，14反对 ｜ 放逐投票 → 16",
+   "relations": [
+    {
+     "from": 7,
+     "to": 9,
+     "type": "trust",
+     "label": "9警长",
+     "strength": 0.65,
+     "id": "g2e6r0"
+    },
+    {
+     "from": 7,
+     "to": 14,
+     "type": "suspect",
+     "label": "反对",
+     "strength": 0.65,
+     "id": "g2e6r1"
+    },
+    {
+     "from": 7,
+     "to": 16,
+     "type": "vote",
+     "label": "投票",
+     "strength": 0.85,
+     "id": "g2e6r2"
+    }
+   ],
+   "round": 1,
+   "phase": "day",
+   "manual": false,
+   "id": "g2e6",
+   "createdAt": 1700000360000
+  },
+  {
+   "speaker": 8,
+   "text": "8 —— 9 10 12 13 1 上警",
+   "relations": [],
+   "round": 1,
+   "phase": "day",
+   "manual": false,
+   "id": "g2e7",
+   "createdAt": 1700000420000
+  },
+  {
+   "speaker": 9,
+   "text": "9（自称预言家）",
+   "relations": [],
+   "round": 1,
+   "phase": "day",
+   "manual": false,
+   "id": "g2e8",
+   "createdAt": 1700000480000
+  },
+  {
+   "speaker": 10,
+   "text": "10（自称平民）",
+   "relations": [],
+   "round": 1,
+   "phase": "day",
+   "manual": false,
+   "id": "g2e9",
+   "createdAt": 1700000540000
+  },
+  {
+   "speaker": 12,
+   "text": "放逐投票 → 3",
+   "relations": [
+    {
+     "from": 12,
+     "to": 3,
+     "type": "vote",
+     "label": "投票",
+     "strength": 0.85,
+     "id": "g2e10r0"
+    }
+   ],
+   "round": 1,
+   "phase": "day",
+   "manual": false,
+   "id": "g2e10",
+   "createdAt": 1700000600000
+  },
+  {
+   "speaker": 13,
+   "text": "13（平民）- 站2号，不站9号 ->挺14 ->出15 ｜ 放逐投票 → 15",
+   "relations": [
+    {
+     "from": 13,
+     "to": 2,
+     "type": "trust",
+     "label": "站边",
+     "strength": 0.85,
+     "id": "g2e11r0"
+    },
+    {
+     "from": 13,
+     "to": 9,
+     "type": "suspect",
+     "label": "不站",
+     "strength": 0.65,
+     "id": "g2e11r1"
+    },
+    {
+     "from": 13,
+     "to": 14,
+     "type": "trust",
+     "label": "挺",
+     "strength": 0.85,
+     "id": "g2e11r2"
+    },
+    {
+     "from": 13,
+     "to": 15,
+     "type": "vote",
+     "label": "投票",
+     "strength": 0.85,
+     "id": "g2e11r3"
+    }
+   ],
+   "round": 1,
+   "phase": "day",
+   "manual": false,
+   "id": "g2e11",
+   "createdAt": 1700000660000
+  },
+  {
+   "speaker": 14,
+   "text": "14（平民）- 10是查杀；12，15 16 出一狼 ｜ 放逐投票 → 16",
+   "relations": [
+    {
+     "from": 14,
+     "to": 10,
+     "type": "suspect",
+     "label": "查杀",
+     "strength": 0.85,
+     "id": "g2e12r0"
+    },
+    {
+     "from": 14,
+     "to": 16,
+     "type": "vote",
+     "label": "投票",
+     "strength": 0.85,
+     "id": "g2e12r1"
+    }
+   ],
+   "round": 1,
+   "phase": "day",
+   "manual": false,
+   "id": "g2e12",
+   "createdAt": 1700000720000
+  },
+  {
+   "speaker": 15,
+   "text": "15（自称平民）- 无信息",
+   "relations": [],
+   "round": 1,
+   "phase": "day",
+   "manual": false,
+   "id": "g2e13",
+   "createdAt": 1700000780000
+  },
+  {
+   "speaker": 16,
+   "text": "16（遗言 好人）- 无信息 ｜ 放逐投票 → 3",
+   "relations": [
+    {
+     "from": 16,
+     "to": 3,
+     "type": "vote",
+     "label": "投票",
+     "strength": 0.85,
+     "id": "g2e14r0"
+    }
+   ],
+   "round": 1,
+   "phase": "day",
+   "manual": false,
+   "id": "g2e14",
+   "createdAt": 1700000840000
+  },
+  {
+   "speaker": 1,
+   "text": "1（自称平民）高玩，觉得15危险了 ->觉得4, 13有狼 ->认为16好人，认为11守卫，觉得9有问题 ->一会会给10号投",
+   "relations": [
+    {
+     "from": 1,
+     "to": 16,
+     "type": "trust",
+     "label": "好人",
+     "strength": 0.85,
+     "id": "g2e15r0"
+    },
+    {
+     "from": 1,
+     "to": 11,
+     "type": "trust",
+     "label": "守卫",
+     "strength": 0.85,
+     "id": "g2e15r1"
+    },
+    {
+     "from": 1,
+     "to": 9,
+     "type": "suspect",
+     "label": "有问题",
+     "strength": 0.85,
+     "id": "g2e15r2"
+    },
+    {
+     "from": 1,
+     "to": 10,
+     "type": "vote",
+     "label": "投10",
+     "strength": 0.85,
+     "id": "g2e15r3"
+    }
+   ],
+   "round": 2,
+   "phase": "day",
+   "manual": false,
+   "id": "g2e15",
+   "createdAt": 1700000900000
+  },
+  {
+   "speaker": 2,
+   "text": "2（自称预言家）->7号位置最低，票在7号 ->1好人确认，第一轮查的 ->觉得4号是狼 ->3号观察一下，可能是狼 ->6偏坏，7偏坏，8偏坏，9铁狼，10偏高 ->12偏坏",
+   "relations": [
+    {
+     "from": 2,
+     "to": 7,
+     "type": "suspect",
+     "label": "偏坏",
+     "strength": 0.65,
+     "id": "g2e16r0"
+    },
+    {
+     "from": 2,
+     "to": 1,
+     "type": "checkG",
+     "label": "金水",
+     "strength": 0.85,
+     "id": "g2e16r1"
+    },
+    {
+     "from": 2,
+     "to": 4,
+     "type": "suspect",
+     "label": "狼",
+     "strength": 0.85,
+     "id": "g2e16r2"
+    },
+    {
+     "from": 2,
+     "to": 3,
+     "type": "suspect",
+     "label": "可能是狼",
+     "strength": 0.65,
+     "id": "g2e16r3"
+    },
+    {
+     "from": 2,
+     "to": 6,
+     "type": "suspect",
+     "label": "偏坏",
+     "strength": 0.65,
+     "id": "g2e16r4"
+    },
+    {
+     "from": 2,
+     "to": 8,
+     "type": "suspect",
+     "label": "偏坏",
+     "strength": 0.65,
+     "id": "g2e16r5"
+    },
+    {
+     "from": 2,
+     "to": 9,
+     "type": "suspect",
+     "label": "铁狼",
+     "strength": 0.85,
+     "id": "g2e16r6"
+    },
+    {
+     "from": 2,
+     "to": 10,
+     "type": "suspect",
+     "label": "偏高",
+     "strength": 0.65,
+     "id": "g2e16r7"
+    },
+    {
+     "from": 2,
+     "to": 12,
+     "type": "suspect",
+     "label": "偏坏",
+     "strength": 0.65,
+     "id": "g2e16r8"
+    }
+   ],
+   "round": 2,
+   "phase": "day",
+   "manual": false,
+   "id": "g2e16",
+   "createdAt": 1700000960000
+  },
+  {
+   "speaker": 3,
+   "text": "3（自称是好人）->觉得12 13 有问题 ->觉得15是狼 ->认定9是预言家",
+   "relations": [
+    {
+     "from": 3,
+     "to": 12,
+     "type": "suspect",
+     "label": "有问题",
+     "strength": 0.85,
+     "id": "g2e17r0"
+    },
+    {
+     "from": 3,
+     "to": 13,
+     "type": "suspect",
+     "label": "有问题",
+     "strength": 0.85,
+     "id": "g2e17r1"
+    },
+    {
+     "from": 3,
+     "to": 15,
+     "type": "suspect",
+     "label": "狼",
+     "strength": 0.85,
+     "id": "g2e17r2"
+    },
+    {
+     "from": 3,
+     "to": 9,
+     "type": "trust",
+     "label": "认预言家",
+     "strength": 0.85,
+     "id": "g2e17r3"
+    }
+   ],
+   "round": 2,
+   "phase": "day",
+   "manual": false,
+   "id": "g2e17",
+   "createdAt": 1700001020000
+  },
+  {
+   "speaker": 4,
+   "text": "4（平民）->觉得2是狼 ->觉得15是狼 ->觉得2，15都可以投出去",
+   "relations": [
+    {
+     "from": 4,
+     "to": 2,
+     "type": "suspect",
+     "label": "狼",
+     "strength": 0.85,
+     "id": "g2e18r0"
+    },
+    {
+     "from": 4,
+     "to": 15,
+     "type": "suspect",
+     "label": "狼",
+     "strength": 0.85,
+     "id": "g2e18r1"
+    }
+   ],
+   "round": 2,
+   "phase": "day",
+   "manual": false,
+   "id": "g2e18",
+   "createdAt": 1700001080000
+  },
+  {
+   "speaker": 5,
+   "text": "5（平民）->站2号,觉得2号很刚 ->想杀了9，因为9作为警长发言不利 ->11铁守卫走的",
+   "relations": [
+    {
+     "from": 5,
+     "to": 2,
+     "type": "trust",
+     "label": "站边",
+     "strength": 0.85,
+     "id": "g2e19r0"
+    },
+    {
+     "from": 5,
+     "to": 9,
+     "type": "vote",
+     "label": "想出9",
+     "strength": 0.85,
+     "id": "g2e19r1"
+    },
+    {
+     "from": 5,
+     "to": 11,
+     "type": "trust",
+     "label": "铁守卫",
+     "strength": 0.85,
+     "id": "g2e19r2"
+    }
+   ],
+   "round": 2,
+   "phase": "day",
+   "manual": false,
+   "id": "g2e19",
+   "createdAt": 1700001140000
+  },
+  {
+   "speaker": 6,
+   "text": "6 ->站1，2 ->觉得2,9找一个杀了，建议留下2号",
+   "relations": [
+    {
+     "from": 6,
+     "to": 1,
+     "type": "trust",
+     "label": "站边",
+     "strength": 0.85,
+     "id": "g2e20r0"
+    },
+    {
+     "from": 6,
+     "to": 2,
+     "type": "trust",
+     "label": "站边",
+     "strength": 0.85,
+     "id": "g2e20r1"
+    }
+   ],
+   "round": 2,
+   "phase": "day",
+   "manual": false,
+   "id": "g2e20",
+   "createdAt": 1700001200000
+  },
+  {
+   "speaker": 7,
+   "text": "7 ->第一轮觉得14有问题；想听一下16发言",
+   "relations": [
+    {
+     "from": 7,
+     "to": 14,
+     "type": "suspect",
+     "label": "有问题",
+     "strength": 0.85,
+     "id": "g2e21r0"
+    }
+   ],
+   "round": 2,
+   "phase": "day",
+   "manual": false,
+   "id": "g2e21",
+   "createdAt": 1700001260000
+  },
+  {
+   "speaker": 12,
+   "text": "12（自称平民）第一晚投了3号，觉得这轮是预言家轮次",
+   "relations": [],
+   "round": 2,
+   "phase": "day",
+   "manual": false,
+   "id": "g2e22",
+   "createdAt": 1700001320000
+  },
+  {
+   "speaker": 13,
+   "text": "13（自称平民）->觉得15号是狼 ->14号点了16号，在其他投了16号里面有狼",
+   "relations": [
+    {
+     "from": 13,
+     "to": 15,
+     "type": "suspect",
+     "label": "狼",
+     "strength": 0.85,
+     "id": "g2e23r0"
+    }
+   ],
+   "round": 2,
+   "phase": "day",
+   "manual": false,
+   "id": "g2e23",
+   "createdAt": 1700001380000
+  },
+  {
+   "speaker": 14,
+   "text": "14（自称平民）4号铁狼 7铁狼 自称没有视角",
+   "relations": [
+    {
+     "from": 14,
+     "to": 4,
+     "type": "suspect",
+     "label": "铁狼",
+     "strength": 0.85,
+     "id": "g2e24r0"
+    },
+    {
+     "from": 14,
+     "to": 7,
+     "type": "suspect",
+     "label": "铁狼",
+     "strength": 0.85,
+     "id": "g2e24r1"
+    }
+   ],
+   "round": 2,
+   "phase": "day",
+   "manual": false,
+   "id": "g2e24",
+   "createdAt": 1700001440000
+  },
+  {
+   "speaker": 15,
+   "text": "15（自称平民）站2号选手",
+   "relations": [
+    {
+     "from": 15,
+     "to": 2,
+     "type": "trust",
+     "label": "站边",
+     "strength": 0.85,
+     "id": "g2e25r0"
+    }
+   ],
+   "round": 2,
+   "phase": "day",
+   "manual": false,
+   "id": "g2e25",
+   "createdAt": 1700001500000
+  },
+  {
+   "speaker": 4,
+   "text": "4 ->和12冲突了，觉得5号是好人面，觉得3号",
+   "relations": [
+    {
+     "from": 4,
+     "to": 5,
+     "type": "trust",
+     "label": "好人面",
+     "strength": 0.85,
+     "id": "g2e26r0"
+    }
+   ],
+   "round": 3,
+   "phase": "day",
+   "manual": false,
+   "id": "g2e26",
+   "createdAt": 1700001560000
+  },
+  {
+   "speaker": 5,
+   "text": "5 ->看4 6 8 身份，觉得4，6是一组",
+   "relations": [],
+   "round": 3,
+   "phase": "day",
+   "manual": false,
+   "id": "g2e27",
+   "createdAt": 1700001620000
+  },
+  {
+   "speaker": 6,
+   "text": "6 ->努力证明自己是好人",
+   "relations": [],
+   "round": 3,
+   "phase": "day",
+   "manual": false,
+   "id": "g2e28",
+   "createdAt": 1700001680000
+  },
+  {
+   "speaker": 7,
+   "text": "7 ->强挺15",
+   "relations": [
+    {
+     "from": 7,
+     "to": 15,
+     "type": "trust",
+     "label": "强挺",
+     "strength": 0.85,
+     "id": "g2e29r0"
+    }
+   ],
+   "round": 3,
+   "phase": "day",
+   "manual": false,
+   "id": "g2e29",
+   "createdAt": 1700001740000
+  },
+  {
+   "speaker": 8,
+   "text": "8 ->觉得5好",
+   "relations": [
+    {
+     "from": 8,
+     "to": 5,
+     "type": "trust",
+     "label": "好",
+     "strength": 0.85,
+     "id": "g2e30r0"
+    }
+   ],
+   "round": 3,
+   "phase": "day",
+   "manual": false,
+   "id": "g2e30",
+   "createdAt": 1700001800000
+  },
+  {
+   "speaker": 12,
+   "text": "12（遗言）->觉得4，6狼；觉得9号应该是",
+   "relations": [
+    {
+     "from": 12,
+     "to": 4,
+     "type": "suspect",
+     "label": "狼",
+     "strength": 0.85,
+     "id": "g2e31r0"
+    },
+    {
+     "from": 12,
+     "to": 6,
+     "type": "suspect",
+     "label": "狼",
+     "strength": 0.85,
+     "id": "g2e31r1"
+    },
+    {
+     "from": 12,
+     "to": 9,
+     "type": "suspect",
+     "label": "应该是",
+     "strength": 0.65,
+     "id": "g2e31r2"
+    }
+   ],
+   "round": 3,
+   "phase": "day",
+   "manual": false,
+   "id": "g2e31",
+   "createdAt": 1700001860000
+  },
+  {
+   "speaker": 14,
+   "text": "14（遗言）->觉得9应该是狼",
+   "relations": [
+    {
+     "from": 14,
+     "to": 9,
+     "type": "suspect",
+     "label": "应该是狼",
+     "strength": 0.85,
+     "id": "g2e32r0"
+    }
+   ],
+   "round": 3,
+   "phase": "day",
+   "manual": false,
+   "id": "g2e32",
+   "createdAt": 1700001920000
+  },
+  {
+   "speaker": 5,
+   "text": "5 ->觉得10号是傻逼，觉得6号有问题",
+   "relations": [
+    {
+     "from": 5,
+     "to": 6,
+     "type": "suspect",
+     "label": "有问题",
+     "strength": 0.85,
+     "id": "g2e33r0"
+    }
+   ],
+   "round": 4,
+   "phase": "day",
+   "manual": false,
+   "id": "g2e33",
+   "createdAt": 1700001980000
+  },
+  {
+   "speaker": 6,
+   "text": "6 ->求生欲过强",
+   "relations": [],
+   "round": 4,
+   "phase": "day",
+   "manual": false,
+   "id": "g2e34",
+   "createdAt": 1700002040000
+  },
+  {
+   "speaker": 8,
+   "text": "8 ->想听为什么投12号",
+   "relations": [],
+   "round": 4,
+   "phase": "day",
+   "manual": false,
+   "id": "g2e35",
+   "createdAt": 1700002100000
+  }
+ ],
+ "sensitivity": 1,
+ "decay": 0.9,
+ "muteKnownWolves": true,
+ "selected": 9,
+ "layout": {
+  "rho": 0.83,
+  "rotation": 0,
+  "focus": false,
+  "labels": true
+ },
+ "truth": {
+  "source": "笔记中的“实际…/我自己”备注与死亡记录；第 6 只狼（梦魇）笔记未写明",
+  "wolves": [
+   3,
+   8,
+   9,
+   10,
+   15
+  ],
+  "good": [
+   4,
+   5,
+   6,
+   7,
+   11,
+   12,
+   13,
+   14,
+   16
+  ],
+  "unlabeled": [
+   1,
+   2
+  ],
+  "goneFrom": {
+   "11": 1,
+   "16": 2,
+   "1": 3,
+   "3": 3,
+   "12": 4,
+   "13": 4,
+   "14": 4
+  }
+ }
+}

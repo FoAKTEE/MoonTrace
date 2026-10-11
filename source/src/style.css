@@ -252,6 +252,7 @@ textarea{resize:vertical;line-height:1.75;min-height:140px}
 .evidence-row{display:flex;align-items:center;gap:12px;padding:8px 0;min-height:54px}
 .evidence-text{font-size:13px;color:var(--moon-dim);flex:1}
 .evidence-text small{display:block;font-size:11px;color:var(--fog);margin-top:2px}
+.evidence-subtitle{font-size:12px;font-weight:600;color:var(--mist);margin:14px 0 4px}
 .evidence-score{font:16px var(--serif);font-variant-numeric:tabular-nums}
 
 /* Relation editor */

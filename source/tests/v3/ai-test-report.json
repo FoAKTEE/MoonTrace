@@ -1,0 +1,108 @@
+{
+  "ui": [
+    "Remote relations keep only valid seats/types; hedged→0.65, firm→0.85; labels capped",
+    "Same-target merge matches the local parser (suspect outranks vote)",
+    "Speech mode refuses relations from other seats and keeps server warnings",
+    "Malformed payloads rejected; out-of-range speakers skipped with a warning",
+    "AI button hidden until a server is configured",
+    "Menu shows AI as optional and off",
+    "Offline privacy note unchanged without a server",
+    "AI button shown when configured, disabled while empty",
+    "Parse request carries token, mode, speaker, seat count and raw text",
+    "AI preview replaces rule preview (rules found 1); out-of-range seat dropped",
+    "Server warnings shown in the preview",
+    "Confirmed AI result stored as an ordinary event marked via=ai",
+    "Displayed probabilities equal the local inference of the stored state",
+    "Export/import keeps the via marker",
+    "History labels AI-parsed speech",
+    "Server error keeps local rule result",
+    "Menu reflects configured AI",
+    "Privacy note discloses remote parsing when configured",
+    "Plain-http endpoints rejected",
+    "Connection test reports a healthy server",
+    "New room id is random, readable, and enables the inbox",
+    "AI settings fit 320x568",
+    "AI settings fit 390x844",
+    "AI settings fit 844x390",
+    "Saving stores the room with a fresh cursor",
+    "Token and server settings never enter the game save",
+    "One iMessage becomes per-speaker events sharing a room id; out-of-range seat dropped",
+    "Claimed role recorded as a claim only",
+    "Inbox events keep an earlier round from the notes; no round or a future round falls back to the current one",
+    "Cursor advances after applying",
+    "Graph focuses the player whose probability moved most",
+    "Sync sends seat count and cursor",
+    "History labels iMessage records",
+    "Re-delivered entries are not applied twice",
+    "Retraction from iMessage removes every event of that message",
+    "Retraction is undoable locally",
+    "Menu shows the connected room",
+    "#room= link pre-fills the room and asks for the token",
+    "Room hash removed from the address bar",
+    "No JavaScript errors in AI interactions"
+  ],
+  "errors": [],
+  "requests": [
+    {
+      "url": "https://mt.test/api/parse",
+      "auth": "Bearer tok",
+      "body": {
+        "mode": "speech",
+        "text": "如果6是狼那8也是。我觉得6号前后矛盾，11号不像狼，今天先出6。",
+        "speaker": 4,
+        "n": 12,
+        "claims": {}
+      }
+    },
+    {
+      "url": "https://mt.test/api/parse",
+      "auth": "Bearer tok",
+      "body": {
+        "mode": "speech",
+        "text": "boom 我怀疑3号",
+        "speaker": 5,
+        "n": 12,
+        "claims": {}
+      }
+    },
+    {
+      "url": "https://mt.test/api/health",
+      "auth": "Bearer tok",
+      "body": null
+    },
+    {
+      "url": "https://mt.test/api/rooms/room-test1/sync",
+      "auth": "Bearer tok",
+      "body": {
+        "after": 0,
+        "n": 12,
+        "claims": {}
+      }
+    },
+    {
+      "url": "https://mt.test/api/rooms/room-test1/sync",
+      "auth": "Bearer tok",
+      "body": {
+        "after": 0,
+        "n": 12,
+        "claims": {
+          "5": "预言家（自称）"
+        }
+      }
+    },
+    {
+      "url": "https://mt.test/api/rooms/room-test1/sync",
+      "auth": "Bearer tok",
+      "body": {
+        "after": 1,
+        "n": 12,
+        "claims": {
+          "5": "预言家（自称）"
+        }
+      }
+    }
+  ],
+  "limitations": [
+    "Server mocked with page.route; Worker covered by server/test/e2e.mjs."
+  ]
+}

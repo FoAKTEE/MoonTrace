@@ -31,14 +31,20 @@ const ICONS = {
 };
 const icon = name => `<svg class="icon" viewBox="0 0 16 16" aria-hidden="true">${ICONS[name]||ICONS.info}</svg>`;
 function paintIcons(root=document){root.querySelectorAll('[data-icon]').forEach(el=>{el.outerHTML=icon(el.dataset.icon)});}
+/* lambda: log-likelihood ratio for "target is a wolf" when the speaker is good; wolf: the same when the speaker
+ * is a wolf. Wolves tend to accuse villagers, shield teammates and fake-seer 查杀 villagers, but how far they
+ * invert is uncertain, so the wolf reading sits halfway between "same as a villager" and "fully inverted".
+ * 查杀/金水 use half of a seer's nominal ×12, because claimed seers are often fake. Hand-set, then checked for
+ * robustness on simulated games and one recorded game (tests/model_eval.mjs); not trained on real data. */
+const halfway=(good,inverted)=>good+(inverted-good)/2,SEER=Math.log(12)/2;
 const TYPES = Object.freeze({
- suspect:{label:'怀疑',short:'疑狼',color:'#ef7b69',lambda:Math.log(1.8)},
- trust:{label:'保好',short:'保好',color:'#62c79e',lambda:-Math.log(1.8)},
- vote:{label:'投票',short:'投票',color:'#ab93ec',lambda:Math.log(1.35)},
- checkW:{label:'声称查杀',short:'查杀?',color:'#f0b06b',lambda:Math.log(3)},
- checkG:{label:'声称金水',short:'金水?',color:'#8fd9b8',lambda:-Math.log(3)},
- skill:{label:'技能记录',short:'技能',color:'#e6d4a3',lambda:0},
- note:{label:'备注',short:'备注',color:'#8b91a8',lambda:0}
+ suspect:{label:'怀疑',short:'疑狼',color:'#ef7b69',lambda:Math.log(1.8),wolf:halfway(Math.log(1.8),-Math.log(2.5))},
+ trust:{label:'保好',short:'保好',color:'#62c79e',lambda:-Math.log(1.8),wolf:halfway(-Math.log(1.8),Math.log(1.6))},
+ vote:{label:'投票',short:'投票',color:'#ab93ec',lambda:Math.log(1.35),wolf:halfway(Math.log(1.35),-Math.log(2))},
+ checkW:{label:'声称查杀',short:'查杀?',color:'#f0b06b',lambda:SEER,wolf:halfway(SEER,-Math.log(6)/2)},
+ checkG:{label:'声称金水',short:'金水?',color:'#8fd9b8',lambda:-SEER,wolf:halfway(-SEER,Math.log(1.5)/2)},
+ skill:{label:'技能记录',short:'技能',color:'#e6d4a3',lambda:0,wolf:0},
+ note:{label:'备注',short:'备注',color:'#8b91a8',lambda:0,wolf:0}
 });
 function newState(n=12,wolves=4){return {version:VERSION,name:'我的对局',n,wolves,round:1,phase:'day',demo:false,
  players:Array.from({length:n},(_,i)=>({id:i+1,alive:true,fixed:'unknown',role:'',weight:.65,...playerRoleDefaults()})),
@@ -70,7 +76,13 @@ function cardinalityMarginals(scores,K){
  for(let i=m-1;i>=0;i--)for(let k=0;k<=K;k++)b[i][k]=logAdd(b[i+1][k],k>0?b[i+1][k-1]+scores[i]:-Infinity);
  const Z=f[m][K];return scores.map((s,i)=>{let part=-Infinity;for(let k=0;k<K;k++)part=logAdd(part,f[i][k]+b[i+1][K-1-k]);return clamp(Math.exp(s+part-Z),0,1);});
 }
-function inferBase(s){
+// A firm statement (.85) from a default-weight source (.65) applies the table above ×1.1.
+const REF_MULT=.85*.65/1.1,PAIR_CAP=1.5,EXACT_LIMIT=1e6,CLAIM_KAPPA=Math.log(1/.12);
+/* Log-odds shift for how a player died. Wolves rarely knife a teammate; only wolves can self-explode. */
+const DEATH_PRIOR=Object.freeze({attack:-3,explode:5,explodeTake:-1.5,poison:.7});
+/** Per ordered pair i→j: summed log-LRs if i is good (g) and if i is a wolf (w), deduped per round, decayed,
+ * and capped at 1.5× the strongest single statement so repetition is not counted as new evidence. */
+function stancePairs(s){
  const latest=new Map(),byId=new Map(s.players.map(p=>[p.id,p]));
  for(const event of s.events){if(event.round>s.round)continue;for(const r of event.relations){
   if(TYPES[r.type].lambda===0)continue;
@@ -79,21 +91,93 @@ function inferBase(s){
  const pairs=new Map();
  for(const r of latest.values()){
   const source=byId.get(r.from);if(!source||!byId.has(r.to))continue;
+  // 查杀/金水 only carry seer-level weight from someone presenting as seer; otherwise they are ordinary stances.
+  const seer=source.claimedRole==='seer'||source.confirmedRole==='seer',type=!seer&&r.type==='checkW'?'suspect':!seer&&r.type==='checkG'?'trust':r.type;
   const muted=s.muteKnownWolves&&source.fixed==='wolf';
-  const raw=TYPES[r.type].lambda*r.strength*(muted?0:source.weight)*Math.pow(s.decay,Math.max(0,s.round-r.round));
-  const key=`${r.from}:${r.to}`;if(!pairs.has(key))pairs.set(key,{from:r.from,to:r.to,raw:0,contribution:0,entries:[],muted});
-  const pair=pairs.get(key);pair.raw+=raw;pair.entries.push({...r,raw,muted});
+  const m=muted?0:r.strength*source.weight/REF_MULT*s.sensitivity*Math.pow(s.decay,Math.max(0,s.round-r.round));
+  const key=`${r.from}:${r.to}`;if(!pairs.has(key))pairs.set(key,{from:r.from,to:r.to,g:0,w:0,capG:0,capW:0,contribution:0,entries:[],muted});
+  const pair=pairs.get(key),g=TYPES[type].lambda*m,w=TYPES[type].wolf*m;
+  pair.g+=g;pair.w+=w;pair.capG=Math.max(pair.capG,PAIR_CAP*Math.abs(g));pair.capW=Math.max(pair.capW,PAIR_CAP*Math.abs(w));pair.entries.push({...r,type,g,w,muted});
  }
- const scores=Array(s.n).fill(0),evidence=Array.from({length:s.n},()=>[]);
+ for(const pair of pairs.values()){pair.g=clamp(pair.g,-pair.capG,pair.capG);pair.w=clamp(pair.w,-pair.capW,pair.capW);}
+ return {pairs,activeEntries:latest.size};
+}
+/** More good players claiming a unique role than the board holds means at least one of them is lying. */
+function claimConflicts(s){
+ const groups=new Map();
+ for(const p of s.players){const r=getRole(s,p.claimedRole);if(!r||p.confirmedRole===r.id||r.camp!=='good'||r.group==='民')continue;if(!groups.has(r.id))groups.set(r.id,[]);groups.get(r.id).push(p.id);}
+ const out=[];
+ for(const [id,members] of groups){
+  const cap=Math.max(0,(s.roles?.enabled?(s.roles.counts[id]||0):1)-s.players.filter(p=>p.confirmedRole===id).length);
+  if(members.length>cap)out.push({role:id,name:getRole(s,id).name,members,cap});
+ }
+ return out;
+}
+function choose(n,k){let c=1;for(let i=1;i<=k;i++){c=c*(n-k+i)/i;if(c>1e12)return Infinity;}return c;}
+/** Exact marginals of exp(Σa·x + Σ J·xᵢxⱼ + claim terms) over all ways to pick K of m, by enumeration. */
+function exactMarginals(a,J,K,factors){
+ const m=a.length,chosen=new Int32Array(K),acc=new Float64Array(m),of=Array.from({length:m},()=>[]);let Z=0,ref=-Infinity;
+ factors.forEach(f=>{f.hit=0;f.local.forEach(j=>of[j].push(f));});
+ (function dfs(start,depth,E){
+  if(depth===K){
+   let e=E;for(const f of factors){const good=f.constGood+f.local.length-f.hit;if(good>f.cap)e-=CLAIM_KAPPA*(good-f.cap);}
+   if(e>ref){const scale=Math.exp(ref-e);Z*=scale;for(let j=0;j<m;j++)acc[j]*=scale;ref=e;}
+   const w=Math.exp(e-ref);Z+=w;for(let t=0;t<K;t++)acc[chosen[t]]+=w;return;
+  }
+  for(let j=start;j<=m-(K-depth);j++){
+   let d=a[j];const row=j*m;for(let t=0;t<depth;t++)d+=J[row+chosen[t]];
+   chosen[depth]=j;for(const f of of[j])f.hit++;dfs(j+1,depth+1,E+d);for(const f of of[j])f.hit--;
+  }
+ })(0,0,0);
+ return Array.from(acc,v=>clamp(v/Z,0,1));
+}
+/** Damped mean-field for very large tables; the cardinality constraint itself stays exact via the DP. */
+function meanFieldMarginals(a,J,K,factors){
+ const m=a.length;let p=cardinalityMarginals(a,K);
+ for(let it=0;it<400;it++){
+  const field=a.slice();
+  for(let j=0;j<m;j++){let f=0;const row=j*m;for(let i=0;i<m;i++)f+=J[row+i]*p[i];field[j]+=f;}
+  for(const fac of factors)for(const j of fac.local){
+   // Becoming a wolf removes j from the good claimants: worth κ·P(other good claimants ≥ cap).
+   let dist=[1];for(const i of fac.local)if(i!==j){const q=1-p[i],next=Array(dist.length+1).fill(0);dist.forEach((v,c)=>{next[c]+=v*(1-q);next[c+1]+=v*q;});dist=next;}
+   field[j]+=CLAIM_KAPPA*dist.reduce((sum,v,c)=>sum+(c+fac.constGood>=fac.cap?v:0),0);
+  }
+  const next=cardinalityMarginals(field,K);let diff=0;
+  for(let j=0;j<m;j++){const v=.5*p[j]+.5*next[j];diff=Math.max(diff,Math.abs(v-p[j]));p[j]=v;}
+  if(diff<1e-9)break;
+ }
+ return p;
+}
+/** Joint camp inference. A stance i→j adds g·xⱼ if i is good and w·xⱼ if i is a wolf, i.e. g·xⱼ + (w−g)·xᵢxⱼ:
+ * who is believable and who is a wolf are solved together, under the global wolf count. */
+function inferBase(s){
+ const {pairs,activeEntries}=stancePairs(s),conflicts=claimConflicts(s);
+ const knownWolves=s.players.filter(p=>p.fixed==='wolf').length,unknown=s.players.filter(p=>p.fixed==='unknown'),K=s.wolves-knownWolves,m=unknown.length;
+ const local=new Map(unknown.map((p,i)=>[p.id,i])),a=new Float64Array(m),J=new Float64Array(m*m),prior=Array(s.n).fill(0);
+ for(const p of s.players)if(!p.alive&&DEATH_PRIOR[p.deathReason])prior[p.id-1]=DEATH_PRIOR[p.deathReason];
+ unknown.forEach((p,i)=>a[i]=prior[p.id-1]);
  for(const pair of pairs.values()){
-  pair.contribution=clamp(pair.raw,-1.2,1.2)*s.sensitivity;
-  scores[pair.to-1]+=pair.contribution;evidence[pair.to-1].push(pair);
+  const i=local.get(pair.from),j=local.get(pair.to),from=s.players[pair.from-1],to=s.players[pair.to-1];
+  if(j!==undefined){
+   if(i!==undefined){a[j]+=pair.g;J[i*m+j]+=pair.w-pair.g;J[j*m+i]+=pair.w-pair.g;}
+   else a[j]+=from.fixed==='wolf'?pair.w:pair.g;
+  }else if(i!==undefined&&to.fixed==='wolf')a[i]+=pair.w-pair.g; // defending a known wolf is telling; accusing one is not
  }
- const knownWolves=s.players.filter(p=>p.fixed==='wolf').length,unknown=s.players.filter(p=>p.fixed==='unknown'),K=s.wolves-knownWolves;
- const unknownPs=cardinalityMarginals(unknown.map(p=>scores[p.id-1]),K);
+ const factors=conflicts.map(c=>({cap:c.cap,constGood:c.members.filter(id=>s.players[id-1].fixed==='good').length,local:c.members.map(id=>local.get(id)).filter(j=>j!==undefined)})).filter(f=>f.local.length);
+ const exact=choose(m,K)<=EXACT_LIMIT;
+ const unknownPs=K<=0||K>=m?cardinalityMarginals(Array.from(a),K):exact?exactMarginals(a,J,K,factors):meanFieldMarginals(a,J,K,factors);
  const ps=s.players.map(p=>p.fixed==='wolf'?1:0);unknown.forEach((p,i)=>ps[p.id-1]=unknownPs[i]);
- return {ps,scores,evidence,K,knownWolves,unknownCount:unknown.length,baseUnknown:unknown.length?K/unknown.length:0,
- sum:ps.reduce((a,b)=>a+b,0),expectedAlive:s.players.reduce((a,p)=>a+(p.alive?ps[p.id-1]:0),0),activeEntries:latest.size};
+ const scores=Array(s.n).fill(0),evidence=Array.from({length:s.n},()=>[]),own=Array.from({length:s.n},()=>[]),notes=Array.from({length:s.n},()=>[]);
+ for(const pair of pairs.values()){
+  const q=ps[pair.from-1];pair.speakerP=q;pair.contribution=pair.muted?0:(1-q)*pair.g+q*pair.w;
+  scores[pair.to-1]+=pair.contribution;evidence[pair.to-1].push(pair);
+  // What the speaker's own stance says about the speaker: siding with a likely wolf is telling.
+  const self=pair.muted?0:(pair.w-pair.g)*ps[pair.to-1];if(Math.abs(self)>=.01)own[pair.from-1].push({to:pair.to,value:self,targetP:ps[pair.to-1],entries:pair.entries});
+ }
+ s.players.forEach((p,i)=>{if(prior[i]){scores[i]+=prior[i];notes[i].push({text:`死因：${DEATH_REASONS[p.deathReason]}`,value:prior[i]});}});
+ for(const c of conflicts)for(const id of c.members)notes[id-1].push({text:`${c.members.filter(x=>x!==id).map(x=>x+'号').join('、')} 也自称${c.name}，板子只有 ${c.cap} 个空位`,value:null});
+ return {ps,scores,evidence,own,notes,exact,K,knownWolves,unknownCount:m,baseUnknown:m?K/m:0,
+ sum:ps.reduce((x,y)=>x+y,0),expectedAlive:s.players.reduce((x,p)=>x+(p.alive?ps[p.id-1]:0),0),activeEntries};
 }
 function assertCore(s){
  if(!Number.isInteger(s.n)||s.n<5||s.n>30)throw Error('玩家人数须为 5–30 的整数。');
@@ -128,11 +212,39 @@ function sanitizeState(input){
   const relations=e.relations.map(r=>{
    if(!Number.isInteger(r.from)||!Number.isInteger(r.to)||r.from<1||r.from>n||r.to<1||r.to>n||r.from===r.to||!Object.prototype.hasOwnProperty.call(TYPES,r.type)||!finite(r.strength)||r.strength<0||r.strength>1)throw Error('存在无效关系。');
    return makeRelation(r.from,r.to,r.type,String(r.label||TYPES[r.type].label).slice(0,60),r.strength);
-  });return {...makeEvent(e.speaker,String(e.text||'').slice(0,6000),relations,e.round,e.phase==='night'?'night':'day',Boolean(e.manual)),createdAt:finite(e.createdAt)?e.createdAt:Date.now(),...(e.kind==='skill'?{kind:'skill',skill:normalizeSkill(e,s)}:{})};
+  });return {...makeEvent(e.speaker,String(e.text||'').slice(0,6000),relations,e.round,e.phase==='night'?'night':'day',Boolean(e.manual)),createdAt:finite(e.createdAt)?e.createdAt:Date.now(),...(e.kind==='skill'?{kind:'skill',skill:normalizeSkill(e,s)}:{}),...(['ai','imessage'].includes(e.via)?{via:e.via}:{}),...(typeof e.rid==='string'&&/^[\w:-]{1,80}$/.test(e.rid)?{rid:e.rid}:{})};
  });if(totalRelations>10000)throw Error('关系总数过多。');
  s.selected=Number.isInteger(input.selected)?clamp(input.selected,1,n):1;
  const l=input.layout||{};s.layout={rho:finite(l.rho)?clamp(l.rho,.62,.87):.83,rotation:finite(l.rotation)?l.rotation%(Math.PI*2):0,focus:!!l.focus,labels:l.labels!==false};
  assertCore(s);return s;
+}
+/** One relation per (from,to): a weaker same-direction claim never replaces a stronger one; an opposite one does. */
+function mergeRelation(relations,next){
+ const old=relations.findIndex(r=>r.from===next.from&&r.to===next.to);
+ if(old<0){relations.push(next);return;}
+ const r=relations[old];if(Math.sign(TYPES[r.type].lambda)===Math.sign(TYPES[next.type].lambda)&&Math.abs(TYPES[r.type].lambda)>Math.abs(TYPES[next.type].lambda))return;relations[old]=next;
+}
+/** Relations proposed by the optional remote parser are untrusted input: only soft-evidence types survive,
+ * seats are range-checked, and strength comes from the same fixed hedge levels as the local parser. */
+const REMOTE_TYPES=['suspect','trust','vote','checkW','checkG'];
+function normalizeRemote(payload,n,speaker=0){
+ if(!payload||!Array.isArray(payload.events))throw Error('服务器返回的格式无效。');
+ const events=[],warnings=[];const warn=x=>{x=String(x).trim().slice(0,120);if(x&&!warnings.includes(x))warnings.push(x);};
+ (Array.isArray(payload.warnings)?payload.warnings:[]).slice(0,8).forEach(warn);
+ for(const raw of payload.events.slice(0,80)){
+  const who=speaker||raw?.speaker;
+  if(!Number.isInteger(who)||who<1||who>n){warn(`发言者编号 ${raw?.speaker} 不在 1–${n} 内，已跳过。`);continue;}
+  const relations=[];
+  for(const r of (Array.isArray(raw.relations)?raw.relations:[]).slice(0,120)){
+   if(!r||!REMOTE_TYPES.includes(r.type))continue;
+   if(speaker&&r.from!==speaker){warn('识别结果含其他人的表态，未归给当前发言者。');continue;}
+   if(!Number.isInteger(r.from)||!Number.isInteger(r.to)||r.from<1||r.to<1||r.from>n||r.to>n){warn(`发现超出当前人数的编号，未计入。`);continue;}
+   if(r.from===r.to)continue;
+   mergeRelation(relations,makeRelation(r.from,r.to,r.type,String(r.label||'').trim().slice(0,60),r.hedged===true?.65:.85));
+  }
+  events.push({speaker:who,round:Number.isInteger(raw.round)&&raw.round>0?raw.round:0,text:String(raw.text||'').trim().slice(0,6000),relations,claim:String(raw.claim||'').trim().slice(0,20)});
+ }
+ return {events,warnings};
 }
 function chineseNumeral(t){const m={'一':1,'二':2,'两':2,'三':3,'四':4,'五':5,'六':6,'七':7,'八':8,'九':9};if(t==='十')return 10;if(t.includes('十')){const a=t.split('十');return (a[0]?m[a[0]]:1)*10+(a[1]?m[a[1]]:0);}return m[t]||t;}
 /** Deliberately conservative clause parser. Uncertain language is not forced into evidence. */
@@ -149,9 +261,7 @@ function parseSpeech(raw,speaker,n){
  const warn=x=>{if(!warnings.includes(x))warnings.push(x);};
  function add(from,to,type,label,strength=.8){
   if(to===from)return;if(to<1||to>n){warn(`发现超出当前人数的编号 ${to}，未计入。`);return;}
-  const old=relations.findIndex(r=>r.from===from&&r.to===to);
-  const next=makeRelation(from,to,type,label,strength);
-  if(old>=0){const r=relations[old];if(Math.sign(TYPES[r.type].lambda)===Math.sign(TYPES[type].lambda)&&Math.abs(TYPES[r.type].lambda)>Math.abs(TYPES[type].lambda))return;relations[old]=next;}else relations.push(next);
+  mergeRelation(relations,makeRelation(from,to,type,label,strength));
  }
  for(const clause of clauses){
   if(/如果|假如|假设|要是|除非|一狼|一只狼|至少.*狼|同边|一组|共边|二选一|(?:出|投)(?:一|1)个/.test(clause)){
@@ -394,7 +504,7 @@ let state,loadError='',rawSaved='';
 try{rawSaved=localStorage.getItem(STORAGE_KEY)||localStorage.getItem('moontrace-v1')||'';state=rawSaved?sanitizeState(JSON.parse(rawSaved)):demoState();}
 catch(e){try{if(rawSaved)localStorage.setItem('moontrace-v3-recovery',rawSaved);}catch(_){}state=demoState();loadError='未能读取本机存档，原内容已尝试备份到 recovery；现显示演示。';}
 let result=infer(state),deltas=Array(state.n).fill(0),undoStack=[],redoStack=[],saveTimer,toastTimer,confirmCallback=null;
-const ui={tab:'graph',speaker:state.demo?5:state.selected,pending:[],warnings:[],settingsNew:false,relationContext:null,relationType:'suspect',zoom:false};
+const ui={tab:'graph',speaker:state.demo?5:state.selected,pending:[],warnings:[],via:'',settingsNew:false,relationContext:null,relationType:'suspect',zoom:false};
 const DRAFT_KEY='moontrace-pocket-draft-v1';
 let drawnEdges=[],nodePositions=[];
 function syncSheetLock(){document.body.classList.toggle('has-sheet',!!document.querySelector('dialog[open]'));}
@@ -407,9 +517,9 @@ function toast(message,error=false){
  if(top){let note=top.querySelector('.sheet-toast');if(!note){note=document.createElement('div');note.className='sheet-toast';note.setAttribute('role','status');top.append(note);}note.textContent=message;setTimeout(()=>note.remove(),4000);}
 }
 function persist(){clearTimeout(saveTimer);saveTimer=setTimeout(()=>{try{localStorage.setItem(STORAGE_KEY,JSON.stringify(state));$('saveStatus').classList.remove('failed');$('saveStatus').innerHTML='<i></i>已保存';}catch(e){$('saveStatus').classList.add('failed');$('saveStatus').innerHTML='<i></i>请导出备份';}},100);}
-function saveDraft(){try{localStorage.setItem(DRAFT_KEY,JSON.stringify({speaker:ui.speaker,text:$('speechInput').value,pending:ui.pending,autoNext:$('autoNext').checked,recordRoleClaim:$('recordRoleClaim').checked,n:state.n,name:state.name}));}catch(e){}}
-function clearDraft(){ui.pending=[];ui.warnings=[];$('speechInput').value='';try{localStorage.removeItem(DRAFT_KEY);}catch(e){}renderPreview();}
-function restoreDraft(){try{const d=JSON.parse(localStorage.getItem(DRAFT_KEY)||'null');if(d&&d.n===state.n&&d.name===state.name&&Number.isInteger(d.speaker)&&d.speaker>=1&&d.speaker<=state.n){ui.speaker=d.speaker;$('speechInput').value=String(d.text||'').slice(0,6000);$('autoNext').checked=d.autoNext!==false;$('recordRoleClaim').checked=d.recordRoleClaim!==false;refreshPreview(false);if(Array.isArray(d.pending)&&d.pending.length<=120&&d.pending.every(r=>Number.isInteger(r.from)&&Number.isInteger(r.to)&&r.from>=1&&r.to>=1&&r.from<=state.n&&r.to<=state.n&&r.from!==r.to&&Object.hasOwn(TYPES,r.type)&&finite(r.strength)&&r.strength>=0&&r.strength<=1)){ui.pending=d.pending.map(r=>makeRelation(r.from,r.to,r.type,String(r.label||TYPES[r.type].label).slice(0,60),r.strength));renderPreview();}}}catch(e){}}
+function saveDraft(){try{localStorage.setItem(DRAFT_KEY,JSON.stringify({speaker:ui.speaker,text:$('speechInput').value,pending:ui.pending,via:ui.via,autoNext:$('autoNext').checked,recordRoleClaim:$('recordRoleClaim').checked,n:state.n,name:state.name}));}catch(e){}}
+function clearDraft(){ui.pending=[];ui.warnings=[];ui.via='';$('speechInput').value='';try{localStorage.removeItem(DRAFT_KEY);}catch(e){}renderPreview();}
+function restoreDraft(){try{const d=JSON.parse(localStorage.getItem(DRAFT_KEY)||'null');if(d&&d.n===state.n&&d.name===state.name&&Number.isInteger(d.speaker)&&d.speaker>=1&&d.speaker<=state.n){ui.speaker=d.speaker;$('speechInput').value=String(d.text||'').slice(0,6000);$('autoNext').checked=d.autoNext!==false;$('recordRoleClaim').checked=d.recordRoleClaim!==false;refreshPreview(false);if(Array.isArray(d.pending)&&d.pending.length<=120&&d.pending.every(r=>Number.isInteger(r.from)&&Number.isInteger(r.to)&&r.from>=1&&r.to>=1&&r.from<=state.n&&r.to<=state.n&&r.from!==r.to&&Object.hasOwn(TYPES,r.type)&&finite(r.strength)&&r.strength>=0&&r.strength<=1)){ui.pending=d.pending.map(r=>makeRelation(r.from,r.to,r.type,String(r.label||TYPES[r.type].label).slice(0,60),r.strength));ui.via=d.via==='ai'?'ai':'';renderPreview();}}}catch(e){}}
 function commit(label,fn,{quiet=false}={}){
  const old=clone(state),oldPs=result.ps.slice(),draft=clone(state);
  try{fn(draft);assertCore(draft);const next=infer(draft);undoStack.push({state:old,label});if(undoStack.length>80)undoStack.shift();redoStack=[];state=draft;result=next;deltas=result.ps.map((p,i)=>oldPs[i]===undefined?0:p-oldPs[i]);state.selected=clamp(state.selected,1,state.n);ui.speaker=clamp(ui.speaker,1,state.n);render();persist();if(!quiet)toast(label);return true;}
@@ -428,7 +538,7 @@ function renderStats(){
  $('allEdges').classList.toggle('active',!state.layout.focus);$('allEdges').setAttribute('aria-pressed',String(!state.layout.focus));$('focusEdges').classList.toggle('active',state.layout.focus);$('focusEdges').setAttribute('aria-pressed',String(state.layout.focus));
  $('labelsBtn').textContent=state.layout.labels?'评价已开':'评价已关';$('labelsBtn').setAttribute('aria-pressed',String(state.layout.labels));
  $('menuSession').innerHTML=`<strong>${esc(state.name)}</strong><span>${alive} 人存活 / ${state.n} 人</span>`;
- $('rankSummary').innerHTML=icon('shield')+`全场概率之和 <b>${result.sum.toFixed(1)}</b> / ${state.wolves} 狼<span style="margin-left:auto;color:var(--fog);font-size:12px">含出局者</span>`;
+ $('rankSummary').innerHTML=icon('shield')+`全场概率之和 <b>${result.sum.toFixed(1)}</b> / ${state.wolves} 狼<span style="margin-left:auto;color:var(--fog);font-size:12px">${result.exact?'含出局者':'人数多 · 近似计算'}</span>`;
  $('graphHint').textContent=ui.zoom?'拖动查看，点 − 还原':state.n>16?'人数较多，点 ＋ 放大':'点玩家查看，点连线修改';
 }
 function latestEdges(){const m=new Map();for(const e of state.events)for(const r of e.relations)m.set(`${r.from}:${r.to}:${e.kind==='skill'?e.skill.type:'speech'}`,{...r,eventId:e.id,round:e.round,text:e.text,skill:e.kind==='skill'});return [...m.values()];}
@@ -512,13 +622,16 @@ function renderHistory(){
  if(!events.length){$('timeline').innerHTML=`<div class="empty">${icon('message')}还没有${$('currentRoundOnly').checked?'本轮':''}发言<br>记下第一段，线索就从这里开始。<br><button class="primary" data-compose>记一段发言</button></div>`;return;}
  let last='',html='';for(const e of events){const phase=`第 ${e.round} ${e.phase==='day'?'天':'晚'}`;if(phase!==last){html+=`<div class="log-section-label">${phase}</div>`;last=phase;}
  const skill=e.kind==='skill';
- html+=`<article class="log-card ${skill?'skill-log':''}"><div class="log-top"><button class="seat-badge" data-detail="${e.speaker}" aria-label="查看${e.speaker}号详情">${pad(e.speaker)}</button><span class="log-name">${skill?'技能 · '+(e.skill.status==='confirmed'?'已确认':'声称'):e.manual?'手动添加的关系':'发言'}</span><span class="log-time">${new Date(e.createdAt).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit',hour12:false})}</span><button class="log-delete" data-delete-event="${e.id}" aria-label="删除${e.speaker}号的这条记录">${icon('trash')}</button></div><p class="log-text">${esc(e.text||'手动添加关系')}</p><div class="log-tags">${skill?`<button class="log-tag skill-edit" data-edit-skill="${e.id}">编辑技能与目标</button>`:e.relations.map(r=>`<button class="log-tag ${r.type}" data-edit-relation="${r.id}" data-event="${e.id}">${r.from!==e.speaker?pad(r.from)+' → ':''}${TYPES[r.type].short} ${pad(r.to)}</button>`).join('')}</div></article>`;}
+ html+=`<article class="log-card ${skill?'skill-log':''}"><div class="log-top"><button class="seat-badge" data-detail="${e.speaker}" aria-label="查看${e.speaker}号详情">${pad(e.speaker)}</button><span class="log-name">${skill?'技能 · '+(e.skill.status==='confirmed'?'已确认':'声称'):e.manual?'手动添加的关系':e.via==='imessage'?'iMessage':e.via==='ai'?'发言 · AI 识别':'发言'}</span><span class="log-time">${new Date(e.createdAt).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit',hour12:false})}</span><button class="log-delete" data-delete-event="${e.id}" aria-label="删除${e.speaker}号的这条记录">${icon('trash')}</button></div><p class="log-text">${esc(e.text||'手动添加关系')}</p><div class="log-tags">${skill?`<button class="log-tag skill-edit" data-edit-skill="${e.id}">编辑技能与目标</button>`:e.relations.map(r=>`<button class="log-tag ${r.type}" data-edit-relation="${r.id}" data-event="${e.id}">${r.from!==e.speaker?pad(r.from)+' → ':''}${TYPES[r.type].short} ${pad(r.to)}</button>`).join('')}</div></article>`;}
  $('timeline').innerHTML=html;
 }
 function renderDetail(){
- const p=state.players[state.selected-1],prob=result.ps[p.id-1],col=colorFor(prob),fixed=p.fixed!=='unknown',evidence=result.evidence[p.id-1].slice().sort((a,b)=>Math.abs(b.contribution)-Math.abs(a.contribution));
+ const p=state.players[state.selected-1],prob=result.ps[p.id-1],col=colorFor(prob),fixed=p.fixed!=='unknown',evidence=result.evidence[p.id-1].slice().sort((a,b)=>Math.abs(b.contribution)-Math.abs(a.contribution)),own=result.own[p.id-1].slice().sort((a,b)=>Math.abs(b.value)-Math.abs(a.value)),notes=result.notes[p.id-1];
  $('playerTitle').innerHTML=`<span class="num">${pad(p.id)}</span> 号玩家`;
- $('playerDetail').innerHTML=`<div class="detail-hero"><div><div class="probability-value" style="color:${col}">${(prob*100).toFixed(1)}<small>%</small></div><p>${fixed?'由已知身份决定，不是模型推断':'启发式估计，未经真实对局校准'}</p></div><button class="alive-btn ${p.alive?'':'dead'}" id="toggleAlive">${p.alive?'● 存活':'○ 已出局'}</button></div><label class="field-label">已知身份</label><div class="identity-grid">${[['unknown','未知'],['good','确认好人'],['wolf','确认狼人']].map(([val,text])=>`<button data-identity="${val}" class="${p.fixed===val?'active':''}" aria-pressed="${p.fixed===val}">${text}</button>`).join('')}</div>${playerRolePanel(p)}<label class="field-label" for="roleNote">其他备注</label><input id="roleNote" value="${esc(p.role)}" maxlength="40" placeholder="如：自称守卫，不锁定身份"><div class="evidence-title"><h3>概率从哪里来</h3><span>${evidence.length} 个来源</span></div>${fixed?'<p class="help">已确认身份固定为 '+(p.fixed==='wolf'?'狼人（100%）':'好人（0%）')+'，发言不会再改变这个值。</p>':evidence.length?evidence.map(e=>`<div class="evidence-row"><button class="seat-badge" data-detail="${e.from}" aria-label="查看来源${e.from}号">${pad(e.from)}</button><span class="evidence-text">${e.muted?'确认狼 · 不计分':e.contribution>0?'提高狼面':e.contribution<0?'降低狼面':'不改变分数'}<small>${e.entries.length} 轮去重证据</small></span><span class="evidence-score" style="color:${e.contribution>0?'var(--red)':e.contribution<0?'var(--mint2)':'var(--muted)'}">${e.contribution>=0?'+':''}${e.contribution.toFixed(2)}</span></div>`).join(''):'<p class="help">没有直接软证据。此概率由全局狼数约束与其他玩家的证据共同决定。</p>'}<details class="advanced"><summary>来源权重 <span id="sourceWeightValue">${p.weight.toFixed(2)}</span></summary><div class="advanced-content"><input id="sourceWeight" type="range" min="0" max="1" step="0.05" value="${p.weight}" aria-label="来源权重"><p class="help">调整此人所有历史发言的影响力，不是直接调整他的狼概率。</p></div></details>`;
+ $('playerDetail').innerHTML=`<div class="detail-hero"><div><div class="probability-value" style="color:${col}">${(prob*100).toFixed(1)}<small>%</small></div><p>${fixed?'由已知身份决定，不是模型推断':'启发式估计，未经真实对局校准'}</p></div><button class="alive-btn ${p.alive?'':'dead'}" id="toggleAlive">${p.alive?'● 存活':'○ 已出局'}</button></div><label class="field-label">已知身份</label><div class="identity-grid">${[['unknown','未知'],['good','确认好人'],['wolf','确认狼人']].map(([val,text])=>`<button data-identity="${val}" class="${p.fixed===val?'active':''}" aria-pressed="${p.fixed===val}">${text}</button>`).join('')}</div>${playerRolePanel(p)}<label class="field-label" for="roleNote">其他备注</label><input id="roleNote" value="${esc(p.role)}" maxlength="40" placeholder="如：自称守卫，不锁定身份"><div class="evidence-title"><h3>概率从哪里来</h3><span>${evidence.length+own.length+notes.length} 项</span></div>${fixed?'<p class="help">已确认身份固定为 '+(p.fixed==='wolf'?'狼人（100%）':'好人（0%）')+'，发言不会再改变这个值。</p>':(notes.map(n=>`<div class="evidence-row"><span class="evidence-text">${esc(n.text)}<small>${n.value==null?'二人中至少一人说谎':'死因单独计入'}</small></span>${n.value==null?'':`<span class="evidence-score" style="color:${n.value>0?'var(--red)':'var(--mint2)'}">${n.value>=0?'+':''}${n.value.toFixed(2)}</span>`}</div>`).join('')
+ +evidence.map(e=>`<div class="evidence-row"><button class="seat-badge" data-detail="${e.from}" aria-label="查看来源${e.from}号">${pad(e.from)}</button><span class="evidence-text">${e.muted?'确认狼 · 不计分':e.contribution>0?'提高狼面':e.contribution<0?'降低狼面':'不改变分数'}<small>${e.entries.length} 轮 · ${e.muted?'按设置忽略':`按其狼面 ${Math.round(e.speakerP*100)}% 解读`}</small></span><span class="evidence-score" style="color:${e.contribution>0?'var(--red)':e.contribution<0?'var(--mint2)':'var(--muted)'}">${e.contribution>=0?'+':''}${e.contribution.toFixed(2)}</span></div>`).join('')
+ +(own.length?`<h4 class="evidence-subtitle">此人自己的表态</h4>`+own.map(o=>`<div class="evidence-row"><button class="seat-badge" data-detail="${o.to}" aria-label="查看${o.to}号">${pad(o.to)}</button><span class="evidence-text">${o.entries.map(r=>TYPES[r.type].label).filter((v,i,a)=>a.indexOf(v)===i).join('、')} ${o.to} 号<small>${o.to} 号狼面 ${Math.round(o.targetP*100)}%</small></span><span class="evidence-score" style="color:${o.value>0?'var(--red)':'var(--mint2)'}">${o.value>=0?'+':''}${o.value.toFixed(2)}</span></div>`).join(''):'')
+ ||'<p class="help">还没有相关发言。此概率由全局狼数约束与其他玩家的证据共同决定。</p>')}<details class="advanced"><summary>来源权重 <span id="sourceWeightValue">${p.weight.toFixed(2)}</span></summary><div class="advanced-content"><input id="sourceWeight" type="range" min="0" max="1" step="0.05" value="${p.weight}" aria-label="来源权重"><p class="help">调整此人所有历史发言的影响力，不是直接调整他的狼概率。</p></div></details>`;
 }
 function renderSpeaker(){
  const p=state.players[ui.speaker-1];$('dockSpeakerNumber').textContent=pad(ui.speaker);$('speechSpeaker').innerHTML=`<span class="mono">${pad(ui.speaker)}</span>号发言${!p.alive?' · 遗言':''}${icon('chevron-right')}`;
@@ -532,17 +645,18 @@ function changeSpeaker(id){
  if(ui.pending.length&&ui.speaker!==id)askConfirm('切换发言者？','这段草稿的识别关系会按新的发言者重新生成，手动修改将重置。',()=>{closeSheet('confirmDialog');apply();});else apply();
 }
 function openComposer(){renderSpeaker();renderPreview();openSheet('speechDialog');}
-function refreshPreview(save=true){const parsed=parseSpeech($('speechInput').value,ui.speaker,state.n);ui.pending=parsed.relations;ui.warnings=parsed.warnings;renderPreview();renderSpeaker();if(save)saveDraft();}
+function refreshPreview(save=true){const parsed=parseSpeech($('speechInput').value,ui.speaker,state.n);ui.pending=parsed.relations;ui.warnings=parsed.warnings;ui.via='';renderPreview();renderSpeaker();if(save)saveDraft();}
 function renderPreview(){
  renderClaimPreview();
  $('charCount').textContent=$('speechInput').value.length+' / 6000';$('previewTitle').textContent=ui.pending.length?`确认关系（${ui.pending.length} 条）`:'确认关系';
  $('previewTags').innerHTML=ui.pending.length?ui.pending.map((r,i)=>`<span class="preview-item ${r.type}"><button data-preview="${i}" aria-label="修改${r.from}号对${r.to}号的${esc(r.label)}关系">${pad(r.from)} → ${pad(r.to)} · ${esc(r.label)}</button><button data-remove-preview="${i}" aria-label="移除这条识别关系">×</button></span>`).join(''):'<span class="preview-placeholder">输入后，这里会出现“怀疑 / 保好 / 投票”等关系。确认后才计入概率。</span>';
  $('parserWarnings').textContent=ui.warnings.join(' ');$('submitSpeech').disabled=!$('speechInput').value.trim()&&!ui.pending.length;
+ $('parserSource').textContent=ui.via==='ai'?'Claude 识别，点标签可以纠正。':'本地规则识别，点标签可以纠正。';$('parserIcon').innerHTML=icon(ui.via==='ai'?'spark':'lock');renderAiButton();
 }
 function submitSpeech(){
- const text=$('speechInput').value.trim(),speaker=ui.speaker,relations=clone(ui.pending);if(!text&&!relations.length)return;
+ const text=$('speechInput').value.trim(),speaker=ui.speaker,relations=clone(ui.pending),via=ui.via;if(!text&&!relations.length)return;
  if(relations.some(r=>r.from>state.n||r.to>state.n)){refreshPreview();toast('人数有变更，请重新确认关系。',true);return;}
- if(commit('记录发言',s=>{s.events.push(makeEvent(speaker,text,relations,s.round,s.phase));const claim=recognizeRoleClaim(text,speaker,s);if(claim&&$('recordRoleClaim').checked)setPlayerRole(s,speaker,claim.roleId,'claim');},{quiet:true})){
+ if(commit('记录发言',s=>{s.events.push({...makeEvent(speaker,text,relations,s.round,s.phase),...(via?{via}:{})});const claim=recognizeRoleClaim(text,speaker,s);if(claim&&$('recordRoleClaim').checked)setPlayerRole(s,speaker,claim.roleId,'claim');},{quiet:true})){
   const changes=deltas.slice();clearDraft();if($('autoNext').checked){for(let offset=1;offset<=state.n;offset++){const candidate=(speaker-1+offset)%state.n+1;if(state.players[candidate-1].alive){ui.speaker=candidate;break;}}}
   if(relations.length){const candidates=[...new Set(relations.map(r=>r.to))].sort((a,b)=>Math.abs(changes[b-1])-Math.abs(changes[a-1]));state.selected=candidates[0];state.layout.focus=true;}
   $('speechInput').blur();closeSheet('speechDialog');setTab('graph');render();persist();saveDraft();
@@ -660,7 +774,7 @@ function playerRolePanel(p){
  if(r?.id==='idiot')resources=badge(resource.voting?'尚未记录翻牌':'已翻牌 · 无投票权');
  const past=skillHistory(state,p.id,{confirmedOnly:true});if(r?.id==='guard'&&past.length){const g=past.filter(e=>e.skill.type==='guard').sort((a,b)=>b.round-a.round)[0];if(g)resources=badge(`第${g.round}晚 ${g.skill.targets.length?'守'+g.skill.targets[0]+'号':'空守'}`);}
  const roleRows=result.rolePs[p.id-1];const sorted=roleRows?Object.entries(roleRows).filter(([,v])=>v>1e-8).sort((a,b)=>b[1]-a[1]):[];
- return `<section class="player-role-panel"><div class="section-top"><h3>角色身份</h3><button class="text-button" data-open-board>板子配额 ${icon('chevron-right')}</button></div><div class="role-status-pair"><button data-pick-role="claim" data-role-player="${p.id}"><span>自称</span><strong>${claim?esc(claim.name):'未记录'}</strong>${icon('chevron-right')}</button><button data-pick-role="confirmed" data-role-player="${p.id}" class="${actual?'has-confirmed':''}"><span>已确认</span><strong>${actual?esc(actual.name):'未翻牌'}</strong>${icon('chevron-right')}</button></div>${r?`<p class="role-description">${esc(r.desc)}</p>`:''}${resources?`<div class="resource-row">${resources}<small>按已确认记录估算；未录入的使用不计</small></div>`:''}${links.length?`<p class="role-description lover-note">恋人记录：${links.map(e=>e.skill.targets.map(n=>n+'号').join(' ↔ ')).join('；')}。不自动改变底牌阵营。</p>`:''}<button class="skill-entry" data-open-skill="${p.id}">${icon('spark')}记${r?esc(r.name):'角色'}技能<span>${skillHistory(state,p.id).length} 条</span>${icon('chevron-right')}</button>${sorted.length?`<details class="advanced role-probs"><summary>角色概率<span>配额推算</span></summary><div class="advanced-content"><p class="help">同阵营剩余角色按配额分配；自称和技能报告不改变分布，未经实战校准。</p>${sorted.map(([id,v])=>`<div class="role-prob-row"><span>${esc(getRole(state,id).name)}</span><div><i style="width:${(v*100).toFixed(1)}%"></i></div><b>${(v*100).toFixed(1)}%</b></div>`).join('')}</div></details>`:''}<details class="advanced"><summary>警徽、第三方与死因</summary><div class="advanced-content"><label class="toggle-label"><input type="checkbox" id="playerSheriff" ${state.sheriff===p.id?'checked':''}><span>持有警徽（全场最多一人）</span></label><label class="toggle-label"><input type="checkbox" id="playerThirdParty" ${p.thirdParty?'checked':''}><span>参与第三方胜利条件</span></label><p class="help">这是胜利关系备注，不改变狼底牌概率，也不自动裁定胜负。</p><label class="field-label" for="playerDeathReason">记录死因（不自动标记出局）</label><select id="playerDeathReason">${Object.entries(DEATH_REASONS).map(([id,name])=>`<option value="${id}" ${p.deathReason===id?'selected':''}>${name}</option>`).join('')}</select></div></details></section>`;
+ return `<section class="player-role-panel"><div class="section-top"><h3>角色身份</h3><button class="text-button" data-open-board>板子配额 ${icon('chevron-right')}</button></div><div class="role-status-pair"><button data-pick-role="claim" data-role-player="${p.id}"><span>自称</span><strong>${claim?esc(claim.name):'未记录'}</strong>${icon('chevron-right')}</button><button data-pick-role="confirmed" data-role-player="${p.id}" class="${actual?'has-confirmed':''}"><span>已确认</span><strong>${actual?esc(actual.name):'未翻牌'}</strong>${icon('chevron-right')}</button></div>${r?`<p class="role-description">${esc(r.desc)}</p>`:''}${resources?`<div class="resource-row">${resources}<small>按已确认记录估算；未录入的使用不计</small></div>`:''}${links.length?`<p class="role-description lover-note">恋人记录：${links.map(e=>e.skill.targets.map(n=>n+'号').join(' ↔ ')).join('；')}。不自动改变底牌阵营。</p>`:''}<button class="skill-entry" data-open-skill="${p.id}">${icon('spark')}记${r?esc(r.name):'角色'}技能<span>${skillHistory(state,p.id).length} 条</span>${icon('chevron-right')}</button>${sorted.length?`<details class="advanced role-probs"><summary>角色概率<span>配额推算</span></summary><div class="advanced-content"><p class="help">同阵营剩余角色按配额分配；自称和技能报告不改变分布，未经实战校准。</p>${sorted.map(([id,v])=>`<div class="role-prob-row"><span>${esc(getRole(state,id).name)}</span><div><i style="width:${(v*100).toFixed(1)}%"></i></div><b>${(v*100).toFixed(1)}%</b></div>`).join('')}</div></details>`:''}<details class="advanced"><summary>警徽、第三方与死因</summary><div class="advanced-content"><label class="toggle-label"><input type="checkbox" id="playerSheriff" ${state.sheriff===p.id?'checked':''}><span>持有警徽（全场最多一人）</span></label><label class="toggle-label"><input type="checkbox" id="playerThirdParty" ${p.thirdParty?'checked':''}><span>参与第三方胜利条件</span></label><p class="help">这是胜利关系备注，不改变狼底牌概率，也不自动裁定胜负。</p><label class="field-label" for="playerDeathReason">记录死因（不自动标记出局）</label><select id="playerDeathReason">${Object.entries(DEATH_REASONS).map(([id,name])=>`<option value="${id}" ${p.deathReason===id?'selected':''}>${name}</option>`).join('')}</select><p class="help">出局后计入：狼刀出局几乎都是好人，自爆一定是狼，被自爆带走多为好人，毒杀略偏狼；其他死因不改变概率。</p></div></details></section>`;
 }
 function openRolePicker(player,mode='claim'){
  rolePicker={player,mode};$('rolePickerTitle').textContent=`${player}号 · ${mode==='confirmed'?'确认真实角色':'记录自称角色'}`;
@@ -778,6 +892,141 @@ function bindRoleUI(){
  });
 }
 
-window.Moontrace=Object.freeze({version:VERSION,appVersion:'3.0',ROLE_CATALOG,SKILLS,BOARD_PRESETS,roleCatalog,getRole,setPlayerRole,assertCore,roleResources,skillWarnings,makeSkillEvent,recognizeRoleClaim,resizeGame,cardinalityMarginals,infer,parseSpeech,geodesic,newState,sanitizeState,getState:()=>clone(state),getResult:()=>clone(result),back});
-bind();bindRoleUI();paintIcons();restoreDraft();render();renderPreview();persist();if(loadError)setTimeout(()=>toast(loadError,true),300);
+/* Optional remote parser and iMessage inbox. The server only proposes relations; normalizeRemote() validates them
+ * and every probability is still computed locally by infer(). Settings live in their own key, never in exported saves. */
+const AI_KEY='moontrace-ai-v1',ROOM_RE=/^[A-Za-z0-9_-]{6,32}$/;
+const aiRun={busy:false,timer:0,syncing:false,failures:0,lastSync:0,error:''};
+function aiConfig(){
+ try{const c=JSON.parse(localStorage.getItem(AI_KEY)||'null');if(c&&typeof c==='object')return {endpoint:String(c.endpoint||''),token:String(c.token||''),room:typeof c.room==='string'&&ROOM_RE.test(c.room)?c.room:'',inbox:c.inbox===true,cursor:Number.isInteger(c.cursor)&&c.cursor>=0?c.cursor:0};}catch(e){}
+ return {endpoint:'',token:'',room:'',inbox:false,cursor:0};
+}
+function saveAiConfig(patch){const next={...aiConfig(),...patch};try{localStorage.setItem(AI_KEY,JSON.stringify(next));}catch(e){}return next;}
+function aiReady(c=aiConfig()){return !!(c.endpoint&&c.token);}
+function cleanEndpoint(raw){
+ const v=String(raw||'').trim();if(!v)return '';
+ let url;try{url=new URL(v);}catch(e){throw Error('服务器地址不是有效网址。');}
+ if(url.protocol!=='https:'&&!(url.protocol==='http:'&&['localhost','127.0.0.1'].includes(url.hostname)))throw Error('服务器地址须以 https:// 开头。');
+ return (url.origin+url.pathname).replace(/\/+$/,'');
+}
+function newRoomId(){const abc='abcdefghjkmnpqrstuvwxyz23456789',bytes=crypto.getRandomValues(new Uint8Array(12));return Array.from(bytes,(b,i)=>(i&&i%4===0?'-':'')+abc[b%abc.length]).join('');}
+async function aiFetch(path,body,c=aiConfig(),timeout=150000){
+ const ctrl=new AbortController(),timer=setTimeout(()=>ctrl.abort(),timeout);
+ try{
+  const res=await fetch(c.endpoint+path,{method:body?'POST':'GET',headers:{Authorization:'Bearer '+c.token,...(body?{'Content-Type':'application/json'}:{})},body:body?JSON.stringify(body):undefined,signal:ctrl.signal,cache:'no-store'});
+  let data=null;try{data=await res.json();}catch(e){}
+  if(res.status===401)throw Error('访问口令不正确。');
+  if(!res.ok)throw Error(typeof data?.error==='string'?data.error.slice(0,120):`服务器返回 ${res.status}。`);
+  return data;
+ }catch(e){if(e.name==='AbortError')throw Error('服务器响应超时。');if(e instanceof TypeError)throw Error('无法连接服务器，请检查地址与网络。');throw e;}
+ finally{clearTimeout(timer);}
+}
+/** Seat → role name, so the parser can resolve “预言家查杀7” to a seat. Claims stay labelled as claims. */
+function seatClaims(){const out={};for(const p of state.players){const r=getRole(state,p.confirmedRole)||getRole(state,p.claimedRole);if(r)out[p.id]=r.name+(p.confirmedRole?'':'（自称）');}return out;}
+function claimRoleId(s,name){const t=String(name||'').trim();if(!t)return '';const r=roleCatalog(s).find(r=>r.name===t||(r.aliases||[]).includes(t));return r?r.id:'';}
+function renderAiButton(){const btn=$('aiParseBtn');btn.hidden=!aiReady();btn.disabled=aiRun.busy||!$('speechInput').value.trim();$('aiParseLabel').textContent=aiRun.busy?'识别中…':'AI 识别';}
+async function aiParseSpeech(){
+ const text=$('speechInput').value.trim(),speaker=ui.speaker,n=state.n;if(!text||aiRun.busy)return;
+ aiRun.busy=true;renderAiButton();
+ try{
+  const data=await aiFetch('/api/parse',{mode:'speech',text,speaker,n,claims:seatClaims()});
+  if($('speechInput').value.trim()!==text||ui.speaker!==speaker||state.n!==n){toast('发言在识别期间被修改，请重新点「AI 识别」。',true);return;}
+  const parsed=normalizeRemote(data,n,speaker);
+  ui.pending=parsed.events[0]?.relations||[];ui.warnings=parsed.warnings;ui.via='ai';renderPreview();renderSpeaker();saveDraft();
+  toast(ui.pending.length?`AI 识别出 ${ui.pending.length} 条关系，确认后才计入`:'AI 没有识别出明确的表态');
+ }catch(e){toast('AI 识别失败：'+e.message+' 已保留本地规则结果。',true);}
+ finally{aiRun.busy=false;renderAiButton();}
+}
+function renderAiStatus(){
+ const c=aiConfig(),ready=aiReady(c),inbox=ready&&c.inbox&&c.room;
+ $('aiMenuState').textContent=!ready?'可选 · 未开启':inbox?`已开启 · 房间 ${c.room}`:'已开启 AI 识别';
+ $('privacyNote').textContent=ready?'点「AI 识别」或接收 iMessage 时，原文会发到你设置的服务器，由 Anthropic 的 Claude 解析；概率仍在本机计算，其余数据只保存在这台设备上。重要对局请导出备份。':'发言只保存在这台设备上，不上传，也不需要账号。重要对局请导出备份。';
+ $('aiStatus').textContent=!inbox?'':aiRun.error?`同步失败：${aiRun.error} 稍后自动重试。`:aiRun.lastSync?`已同步 ${new Date(aiRun.lastSync).toLocaleTimeString('zh-CN',{hour12:false})}`:'等待第一次同步…';
+}
+function openAiDialog(){
+ closeSheet('menuDialog');const c=aiConfig();
+ $('aiEndpoint').value=c.endpoint||(location.protocol==='https:'?location.origin:'');$('aiToken').value=c.token;$('aiRoom').value=c.room;$('aiInbox').checked=c.inbox;
+ $('aiError').textContent='';$('aiTestResult').textContent='';renderAiStatus();openSheet('aiDialog');
+}
+function readAiForm(){
+ const endpoint=cleanEndpoint($('aiEndpoint').value),token=$('aiToken').value.trim(),room=$('aiRoom').value.trim(),inbox=$('aiInbox').checked;
+ if(room&&!ROOM_RE.test(room))throw Error('房间号须为 6–32 位字母、数字、- 或 _。');
+ if((token||inbox)&&!endpoint)throw Error('请先填写服务器地址。');
+ if(endpoint&&!token)throw Error('请填写访问口令。');
+ if(inbox&&!room)throw Error('接收 iMessage 记录需要房间号，可点「新建」。');
+ return {endpoint,token,room,inbox};
+}
+function saveAiForm(e){
+ e.preventDefault();let next;try{next=readAiForm();}catch(err){$('aiError').textContent=err.message;return;}
+ const old=aiConfig();saveAiConfig({...next,cursor:next.room===old.room?old.cursor:0});
+ aiRun.failures=0;aiRun.error='';aiRun.lastSync=0;closeSheet('aiDialog');renderAiButton();renderAiStatus();scheduleSync(0);
+ toast(!next.endpoint?'已保存：仅本机模式':next.inbox?'已保存，开始接收 iMessage 记录':'已保存，记发言时可用 AI 识别');
+}
+async function testAi(){
+ let c;try{c={...aiConfig(),...readAiForm()};}catch(err){$('aiError').textContent=err.message;return;}
+ if(!c.endpoint){$('aiError').textContent='请先填写服务器地址。';return;}
+ $('aiError').textContent='';$('aiTestResult').textContent='连接中…';
+ try{const d=await aiFetch('/api/health',null,c,10000);$('aiTestResult').textContent=d?.ai?'连接成功，AI 可用':'已连接，但服务器还没配置 Anthropic API key';}
+ catch(err){$('aiTestResult').textContent='';$('aiError').textContent=err.message;}
+}
+function clearAi(){askConfirm('停用 AI 与 iMessage？','将清除本机保存的服务器地址、口令和房间号。已记录的发言不受影响。',()=>{try{localStorage.removeItem(AI_KEY);}catch(e){}clearTimeout(aiRun.timer);aiRun.error='';aiRun.lastSync=0;closeAllSheets();renderAiButton();renderAiStatus();toast('已停用，回到纯本机模式');});}
+function scheduleSync(delay=4000){clearTimeout(aiRun.timer);const c=aiConfig();if(!c.inbox||!c.room||!aiReady(c)||document.hidden)return;aiRun.timer=setTimeout(syncInbox,delay);}
+async function syncInbox(){
+ const c=aiConfig();if(!c.inbox||!c.room||!aiReady(c)||aiRun.syncing)return;
+ aiRun.syncing=true;let failed=false;
+ try{
+  const data=await aiFetch(`/api/rooms/${encodeURIComponent(c.room)}/sync`,{after:c.cursor,n:state.n,claims:seatClaims()},c,15000);
+  const now=aiConfig();
+  if(now.room===c.room&&now.cursor===c.cursor){
+   if(Number.isInteger(data?.last)&&data.last<c.cursor)saveAiConfig({cursor:0}); // room was recreated on the server: start over
+   else applyInbox(Array.isArray(data?.entries)?data.entries:[],c.room,c.cursor);
+  }
+  aiRun.error='';aiRun.failures=0;aiRun.lastSync=Date.now();
+ }catch(e){failed=true;aiRun.failures++;aiRun.error=e.message;}
+ finally{aiRun.syncing=false;renderAiStatus();scheduleSync(failed?Math.min(60000,4000*2**aiRun.failures):4000);}
+}
+/** Each room entry is one iMessage: commit it separately so undo and retraction stay per message. */
+function applyInbox(entries,room,cursor){
+ const fresh=entries.filter(x=>Number.isInteger(x?.seq)&&x.seq>cursor).sort((a,b)=>a.seq-b.seq);if(!fresh.length)return;
+ const before=result.ps.slice(),targets=new Set(),notes=[];let added=0,removed=0;
+ for(const entry of fresh){
+  if(entry.kind==='retract'&&Number.isInteger(entry.target)){
+   const rid=`${room}:${entry.target}`;
+   if(state.events.some(e=>e.rid===rid)&&commit('iMessage 撤回记录',s=>{s.events=s.events.filter(e=>e.rid!==rid);},{quiet:true}))removed++;
+   continue;
+  }
+  if(entry.kind!=='event')continue;
+  const rid=`${room}:${entry.seq}`;if(state.events.some(e=>e.rid===rid))continue;
+  let parsed;try{parsed=normalizeRemote(entry,state.n);}catch(e){notes.push(e.message);continue;}
+  notes.push(...parsed.warnings);if(!parsed.events.length)continue;
+  const ok=commit('iMessage 记录',s=>{for(const ev of parsed.events){
+   const round=ev.round>=1&&ev.round<s.round?ev.round:s.round; // notes may name earlier rounds; never a future one
+   s.events.push({...makeEvent(ev.speaker,ev.text||String(entry.text||'').slice(0,6000),ev.relations,round,round===s.round?s.phase:'day'),via:'imessage',rid});
+   const roleId=claimRoleId(s,ev.claim);if(roleId)setPlayerRole(s,ev.speaker,roleId,'claim');
+  }},{quiet:true});
+  if(ok){added+=parsed.events.length;parsed.events.forEach(ev=>ev.relations.forEach(r=>targets.add(r.to)));}
+ }
+ saveAiConfig({cursor:fresh.at(-1).seq});
+ if(!added&&!removed){if(notes.length)toast('iMessage：'+notes[0],true);return;}
+ if(targets.size&&!document.querySelector('dialog[open]')){
+  state.selected=[...targets].sort((a,b)=>Math.abs(result.ps[b-1]-before[b-1])-Math.abs(result.ps[a-1]-before[a-1])||a-b)[0];state.layout.focus=true;render();persist();
+ }
+ toast(`iMessage：新增 ${added} 条记录${removed?`，撤回 ${removed} 条`:''}`);
+}
+/** A shared link like …/#room=abcd-efgh-jkmn joins that room on this device; the token is never put in links. */
+function readRoomHash(){
+ const m=location.hash.match(/[#&]room=([A-Za-z0-9_-]{6,32})(?=&|$)/);if(!m)return;
+ try{history.replaceState(null,'',location.pathname+location.search);}catch(e){}
+ const old=aiConfig();saveAiConfig({room:m[1],inbox:true,cursor:m[1]===old.room?old.cursor:0});
+ if(!aiReady())setTimeout(()=>{openAiDialog();$('aiError').textContent='填写服务器地址和访问口令后，即可接收这个房间的 iMessage 记录。';},300);
+}
+function bindAiUI(){
+ $('aiMenuBtn').onclick=openAiDialog;$('aiForm').onsubmit=saveAiForm;$('aiTest').onclick=testAi;$('aiClear').onclick=clearAi;
+ $('aiNewRoom').onclick=()=>{$('aiRoom').value=newRoomId();$('aiInbox').checked=true;};$('aiParseBtn').onclick=aiParseSpeech;
+ document.addEventListener('visibilitychange',()=>{if(document.hidden)clearTimeout(aiRun.timer);else scheduleSync(0);});
+ window.addEventListener('online',()=>scheduleSync(0));
+ readRoomHash();renderAiStatus();scheduleSync(300);
+}
+
+window.Moontrace=Object.freeze({version:VERSION,appVersion:'3.0',ROLE_CATALOG,SKILLS,BOARD_PRESETS,roleCatalog,getRole,setPlayerRole,assertCore,roleResources,skillWarnings,makeSkillEvent,recognizeRoleClaim,resizeGame,cardinalityMarginals,infer,parseSpeech,normalizeRemote,geodesic,newState,sanitizeState,getState:()=>clone(state),getResult:()=>clone(result),back});
+bind();bindRoleUI();bindAiUI();paintIcons();restoreDraft();render();renderPreview();persist();if(loadError)setTimeout(()=>toast(loadError,true),300);
 })();

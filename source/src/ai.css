@@ -1,0 +1,10 @@
+.preview-actions{display:flex;align-items:center;gap:2px}
+.ai-test-row{display:flex;align-items:center;gap:12px;margin-top:12px;font-size:13px;color:var(--mist);min-width:0}
+.ai-test-row>button{flex-shrink:0;min-height:42px}
+.ai-test-row>span{min-width:0;overflow-wrap:anywhere}
+.ai-section-title{font-size:14px;font-weight:600;color:var(--moon-dim);margin:22px 0 0;padding-top:16px;border-top:1px solid var(--line-soft)}
+.ai-room-row{display:flex;gap:8px}
+.ai-room-row>input{flex:1;min-width:0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.02em}
+.ai-room-row>button{flex-shrink:0}
+#aiDialog code{font-size:12px;padding:1px 5px;border-radius:5px;background:var(--ink-2);color:var(--moon-dim)}
+#parserIcon{display:flex;flex-shrink:0}

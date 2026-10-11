@@ -1,0 +1,22 @@
+name = "moontrace"
+main = "src/index.js"
+compatibility_date = "2025-09-01"
+compatibility_flags = ["nodejs_compat"]
+
+# The same build as pwa/ is served from this Worker, so the page and /api/ share one address.
+[assets]
+directory = "../pwa"
+
+[[durable_objects.bindings]]
+name = "ROOM"
+class_name = "Room"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Room"]
+
+[vars]
+MODEL = "claude-opus-5-5"
+EFFORT = "low"
+
+# Secrets (never commit them): wrangler secret put ANTHROPIC_API_KEY / MOONTRACE_TOKEN
